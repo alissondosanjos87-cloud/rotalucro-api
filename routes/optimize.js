@@ -1,40 +1,45 @@
 const express = require('express');
 const router = express.Router();
-const { getWorkerPool } = require('../services/workerPool');
 const routeCache = require('../services/cache');
+const { otimizarRotaAvancada } = require('../otimizador/index');
 const { logSeguro, sanitizarErro } = require('../config/supabase');
+
+router.use((req, res, next) => { req.startTime = Date.now(); next(); });
 
 router.post('/', async (req, res) => {
   try {
-    const { pedidos } = req.body;
-    const userId = req.user.id;
+    const { paradas, options } = req.body;
+    if (!paradas?.length || paradas.length < 2) return res.status(400).json({ error: 'Mínimo 2 paradas' });
 
-    if (!pedidos || !Array.isArray(pedidos) || pedidos.length < 2) {
-      return res.status(400).json({ error: 'Envie ao menos 2 pedidos com lat/lng' });
+    // Valida coordenadas
+    for (const p of paradas) {
+      if (!p.lat || !p.lng || isNaN(p.lat) || isNaN(p.lng)) {
+        return res.status(400).json({ error: 'Coordenadas inválidas', parada: p });
+      }
+      p.lat = parseFloat(p.lat); p.lng = parseFloat(p.lng);
+      if (!p.tempoParada) p.tempoParada = p.tipo === 'condominio' ? 10 : p.tipo === 'apto' ? 6 : 3;
     }
 
-    const cached = await routeCache.get(pedidos);
+    // Cache
+    const cached = routeCache.get(paradas);
     if (cached) {
-      logSeguro('info', 'Cache HIT', { userId, pedidos: pedidos.length });
-      return res.json({ ...cached, cached: true });
+      logSeguro('log', 'Cache HIT', { paradas: paradas.length });
+      return res.json({ success: true, cached: true, ...cached });
     }
 
-    const supabase = req.app.get('supabase');
-    const { data: historico } = await supabase
-      .from('historico_transito')
-      .select('origem, destino, tempo_estimado, tempo_real')
-      .eq('user_id', userId)
-      .limit(100);
+    logSeguro('log', 'Otimizando', { paradas: paradas.length });
+    const resultado = await otimizarRotaAvancada(paradas, options);
+    const response = { success: true, cached: false, ...resultado };
+    
+    routeCache.set(paradas, response);
+    res.json(response);
+  } catch (err) {
+    logSeguro('error', 'Erro optimize', { error: err.message });
+    res.status(500).json(sanitizarErro(err));
+  }
+});
 
-    logSeguro('info', 'Iniciando otimização', { userId, pedidos: pedidos.length });
-    const pool = getWorkerPool();
-    const resultado = await pool.execute(pedidos, historico || []);
-
-    await routeCache.set(pedidos, resultado);
-
-    await supabase.from('metricas_otimizacao').insert({
-      user_id: userId,
-      qtd_pedidos: pedidos.length,
+module.exports = router;      qtd_pedidos: pedidos.length,
       distancia_km: parseFloat(resultado.distancia_km),
       tempo_processamento_ms: Date.now() - req.startTime
     });
