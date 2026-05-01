@@ -1,15 +1,20 @@
 services:
-    - type: web
+  - type: web
     name: rotalucro-api
     env: node
+    region: oregon
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
-            - key: NODE_ENV
+      - key: NODE_ENV
         value: production
-            - key: SUPABASE_URL
-        sync: false
-            - key: SUPABASE_ANON_KEY
-        sync: false
-    healthCheckPath: /
+      - key: PORT
+        value: "3000"
+      - key: SUPABASE_URL
+        value: https://seu-projeto.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: sua-chave
+      - key: CUSTO_KM
+        value: "0.80"
