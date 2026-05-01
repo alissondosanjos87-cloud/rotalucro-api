@@ -15,45 +15,54 @@ app.use(helmet());
 app.use(cors());
 app.use(morgan('short'));
 app.use(express.json({ limit: '5mb' }));
-app.use('/api', rateLimit({ windowMs: 60000, max: 200 }));
+app.use('/api', rateLimit({ windowMs: 60000, max: 100 }));
+
 app.set('supabase', supabase);
 
-app.get('/', (req, res) => {
-  res.json({
-    status: 'operational',
-    version: '3.0.0',
-    features: ['2-opt', 'worker-threads', 'redis-cache', 'transito-aprendizado', 'calculo-lucro'],
-    stats: {
-      uptime: process.uptime(),
-      cache: routeCache.getStats(),
-      workers: getWorkerPool().getStatus()
-    }
-  });
-});
+// Health check (ping para manter awake)
+app.get('/', (req, res) => res.json({ status: 'ok', version: '4.0.0' }));
+app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/ping', (req, res) => res.send('pong'));
 
-async function authMiddleware(req, res, next) {
+// Auth middleware
+async function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Token requerido' });
   try {
+    if (!supabase) { req.user = { id: 'anon' }; return next(); }
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) return res.status(401).json({ error: 'Token inválido' });
     req.user = user;
     next();
-  } catch (err) {
-    res.status(500).json(sanitizarErro(err));
-  }
+  } catch { res.status(500).json({ error: 'Erro auth' }); }
 }
 
-app.use('/api/optimize', authMiddleware, require('./routes/optimize'));
-app.use('/api/track', authMiddleware, require('./routes/track'));
-app.use('/api/lucro', authMiddleware, require('./routes/lucro'));
+// Rotas
+app.use('/api/optimize', auth, require('./routes/optimize'));
+app.use('/api/track', auth, require('./routes/track'));
+app.use('/api/lucro', auth, require('./routes/lucro'));
+app.use('/api/perfil', auth, require('./routes/perfil'));
+app.use('/api/health', require('./routes/health'));
 
+// 404
+app.use((req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
+
+// Error handler
 app.use((err, req, res, next) => {
-  logSeguro('error', 'Erro', { path: req.path, message: err.message });
+  logSeguro('error', 'Erro', { message: err.message });
   res.status(500).json(sanitizarErro(err));
 });
 
-app.listen(PORT, () => {
-  console.log(`🧠 RotaLucro API v3.0 rodando na porta ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`🧠 RotaLucro API v4.0 - Porta ${PORT} - Zero Custo`);
 });
-module.exports = app;
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('🛑 Encerrando...');
+  const pool = getWorkerPool();
+  await pool.shutdown();
+  server.close(() => process.exit(0));
+});
+
+module.exports = app
