@@ -1,4 +1,15 @@
 const express = require('express');
 const router = express.Router();
-router.get('/', (req,res)=>res.json({status:'ok'}));
+
+router.get('/', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+router.get('/detalhado', (req, res) => {
+  res.json({
+    status: 'healthy',
+    uptime: process.uptime(),
+    memoria: process.memoryUsage().rss / 1024 / 1024 + ' MB',
+    node: process.version,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 module.exports = router;
