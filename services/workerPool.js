@@ -1,14 +1,12 @@
-// Worker pool simples - não usa Redis no plano free
 let pool = null;
-
 function getWorkerPool() {
   if (!pool) {
     pool = {
-      query: async (fn) => await fn(),
-      close: async () => {}
+      acquire: async () => ({}),
+      release: async () => {},
+      getStatus: () => ({ active: 0, idle: 0, version: 'v3.0-free' })
     };
   }
   return pool;
 }
-
 module.exports = { getWorkerPool };
