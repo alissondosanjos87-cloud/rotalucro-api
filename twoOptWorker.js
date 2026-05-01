@@ -1,59 +1,38 @@
-const { parentPort } = require('worker_threads');
+const { parentPort, workerData } = require('worker_threads');
 
-function calcDist(a, b) {
-  const R = 6371;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLon = (b.lng - a.lng) * Math.PI / 180;
-  const lat1 = a.lat * Math.PI / 180;
-  const lat2 = b.lat * Math.PI / 180;
-  const x = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
+function dist(a, b) {
+  const R = 6371; const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const x = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
 }
 
-function twoOpt(rota) {
-  let melhor = [...rota];
-  let melhorDist = calcRotaDist(melhor);
-  let melhorou = true;
-
-  while (melhorou) {
-    melhorou = false;
-    for (let i = 1; i < melhor.length - 2; i++) {
-      for (let j = i + 1; j < melhor.length - 1; j++) {
-        const nova = [...melhor];
-        const trecho = nova.slice(i, j + 1).reverse();
-        nova.splice(i, trecho.length,...trecho);
-        const novaDist = calcRotaDist(nova);
-        if (novaDist < melhorDist) {
-          melhor = nova;
-          melhorDist = novaDist;
-          melhorou = true;
+function twoOpt(rota, maxIter = 3) {
+  if (!rota || rota.length < 4) return { rota: rota ? [...rota] : [], melhorias: 0 };
+  let melhor = [...rota], melhorias = 0, iter = 0;
+  while (iter < maxIter) {
+    let melhorou = false;
+    for (let i = 1; i < melhor.length-2; i++) {
+      for (let j = i+1; j < melhor.length-1; j++) {
+        const antes = dist(melhor[i-1], melhor[i]) + dist(melhor[j], melhor[j+1]);
+        const depois = dist(melhor[i-1], melhor[j]) + dist(melhor[i], melhor[j+1]);
+        if (depois - antes < -0.0001) {
+          melhor = [...melhor.slice(0,i), ...melhor.slice(i,j+1).reverse(), ...melhor.slice(j+1)];
+          melhorias++; melhorou = true;
         }
       }
     }
+    if (!melhorou) break;
+    iter++;
   }
-  return { rota: melhor, distancia: melhorDist };
+  return { rota: melhor, melhorias };
 }
 
-function calcRotaDist(rota) {
-  let dist = 0;
-  for (let i = 0; i < rota.length - 1; i++) {
-    dist += calcDist(rota[i], rota[i + 1]);
-  }
-  return dist;
+try {
+  const { rota, options } = workerData || {};
+  if (!rota?.length) { parentPort.postMessage({ success: false, rota: [] }); return; }
+  const result = twoOpt(rota, options?.maxIteracoes || 3);
+  parentPort.postMessage({ success: true, ...result });
+} catch (e) {
+  parentPort.postMessage({ success: false, erro: e.message, rota: workerData?.rota || [] });
 }
-
-parentPort.on('message', ({ pedidos, historico }) => {
-  try {
-    const resultado = twoOpt(pedidos);
-    parentPort.postMessage({
-      success: true,
-      rota: resultado.rota,
-      distancia_km: resultado.distancia.toFixed(2),
-      economia_estimada: '15-30%',
-      processado_em: new Date().toISOString()
-    });
-  } catch (err) {
-    parentPort.postMessage({ success: false, error: err.message });
-  }
-});
