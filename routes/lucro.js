@@ -1,40 +1,29 @@
-import express from 'express';
+const express = require('express');
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post('/calcular', (req, res) => {
   try {
-    const {
-      origem,
-      destino,
-      valor_frete,
-      distancia_km = 250,
-      consumo_km_l = 2.5,
-      preco_combustivel = 6.30,
-      pedagio = 0,
-      outros_custos = 0
-    } = req.body;
+    const { valor_frete, distancia_km, tempo_min, paradas = 1 } = req.body;
+    if (!valor_frete || !distancia_km) return res.status(400).json({ error: 'valor_frete e distancia_km obrigatórios' });
 
-    if (!origem || !destino || !valor_frete) {
-      return res.status(400).json({ 
-        error: 'Informe origem, destino e valor_frete' 
-      });
-    }
-
-    const litros = distancia_km / consumo_km_l;
-    const custo_combustivel = litros * preco_combustivel;
-    const custo_total = custo_combustivel + Number(pedagio) + Number(outros_custos);
-    const lucro = Number(valor_frete) - custo_total;
+    const custoKm = parseFloat(process.env.CUSTO_KM) || 0.80;
+    const custoTotal = distancia_km * custoKm;
+    const lucro = valor_frete - custoTotal;
+    const ganhoHora = tempo_min > 0 ? (lucro / (tempo_min / 60)) : 0;
 
     res.json({
-      rota: `${origem} → ${destino}`,
-      distancia_km,
-      valor_frete: Number(valor_frete),
-      custo_combustivel: Number(custo_combustivel.toFixed(2)),
-      pedagio: Number(pedagio),
-      outros_custos: Number(outros_custos),
-      custo_total: Number(custo_total.toFixed(2)),
-      lucro: Number(lucro.toFixed(2)),
-      lucro_por_km: Number((lucro / distancia_km).toFixed(2)),
+      lucro: parseFloat(lucro.toFixed(2)),
+      ganhoHora: parseFloat(ganhoHora.toFixed(2)),
+      custoTotal: parseFloat(custoTotal.toFixed(2)),
+      viavel: lucro > 0,
+      mensagem: lucro > 0 ? '✅ Lucrativa' : '❌ Prejuízo',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;      lucro_por_km: Number((lucro / distancia_km).toFixed(2)),
       viavel: lucro > 0,
       mensagem: lucro > 0 ? 'ROTA LUCRATIVA' : 'PREJUÍZO',
       calculado_em: new Date().toLocaleString('pt-BR')
