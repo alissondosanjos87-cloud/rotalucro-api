@@ -11,30 +11,141 @@ const routeCache = require('./services/cache');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ============================================================
-// MIDDLEWARES
-// ============================================================
-
-// Segurança
+// Middlewares
 app.use(helmet());
-
-// CORS
 app.use(cors());
-
-// Logging
 app.use(morgan('short'));
+app.use(express.json({ limit: '2mb' }));
 
-// Body parser com limite de tamanho
-app.use(express.json({ limit: '2mb' })); // Reduzido para evitar payloads enormes
-
-// 🔥 Rate limiting mais restritivo para /optimize
+// Rate limiting
 const optimizeLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: 30,             // Máximo 30 requisições por minuto
+  windowMs: 60 * 1000,
+  max: 30,
   message: { error: 'Muitas otimizações. Aguarde um minuto.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Muitas requisições.' },
+});
+
+app.use('/api/optimize', optimizeLimiter);
+app.use('/api', generalLimiter);
+
+app.set('supabase', supabase);
+
+// Health check
+app.get('/', function(req, res) {
+  res.json({
+    status: 'ok',
+    version: '4.0.0',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/health', function(req, res) {
+  res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+app.get('/ping', function(req, res) {
+  res.send('pong');
+});
+
+// Auth middleware
+async function auth(req, res, next) {
+  var token = req.headers.authorization;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Token requerido' });
+  }
+  
+  token = token.replace('Bearer ', '');
+
+  try {
+    if (!supabase) {
+      req.user = { id: 'offline', email: 'offline@local' };
+      return next();
+    }
+
+    var result = await supabase.auth.getUser(token);
+    var user = result.data.user;
+    var error = result.error;
+    
+    if (error || !user) {
+      return res.status(401).json({ error: 'Token invalido ou expirado' });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Erro na autenticacao' });
+  }
+}
+
+// Rotas
+app.use('/api/health', require('./routes/health'));
+app.use('/api/optimize', auth, require('./routes/optimize'));
+app.use('/api/track', auth, require('./routes/track'));
+app.use('/api/lucro', auth, require('./routes/lucro'));
+app.use('/api/perfil', auth, require('./routes/perfil'));
+
+// 404
+app.use(function(req, res) {
+  res.status(404).json({
+    error: 'Rota nao encontrada',
+    path: req.originalUrl,
+  });
+});
+
+// Error handler
+app.use(function(err, req, res, next) {
+  logSeguro('error', 'Erro nao tratado', {
+    path: req.path,
+    message: err.message,
+  });
+  res.status(err.status || 500).json(sanitizarErro(err));
+});
+
+// Start
+var server = app.listen(PORT, function() {
+  console.log('RotaLucro API v4.0 - Porta ' + PORT);
+  console.log('Limite: 150 paradas');
+  console.log('Cache: Memoria');
+  console.log('Custo: R$ 0');
+});
+
+// Graceful shutdown
+async function shutdown(signal) {
+  console.log(signal + ' recebido. Encerrando...');
+  server.close(function() {
+    console.log('HTTP fechado');
+  });
+  var pool = getWorkerPool();
+  await pool.shutdown();
+  console.log('Shutdown completo');
+  process.exit(0);
+}
+
+process.on('SIGTERM', function() { shutdown('SIGTERM'); });
+process.on('SIGINT', function() { shutdown('SIGINT'); });
+
+process.on('uncaughtException', function(err) {
+  logSeguro('error', 'Erro fatal', { message: err.message });
+  console.error(err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', function(reason) {
+  logSeguro('error', 'Promise rejeitada', {
+    message: reason instanceof Error ? reason.message : String(reason),
+  });
+});
+
+module.exports = app;});
 
 // Rate limit geral
 const generalLimiter = rateLimit({
