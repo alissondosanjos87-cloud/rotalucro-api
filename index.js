@@ -1,8 +1,14 @@
-var http = require('http');
+var express = require('express');
+var app = express();
 
-http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'application/json'});
-  res.end('{"ok":true,"msg":"RotaLucro no ar!"}');
-}).listen(3000, function() {
-  console.log('RotaLucro rodando na porta 3000');
+app.get('/', function(req, res) {
+  res.json({ ok: true, msg: 'RotaLucro no ar!', version: '4.0.0' });
+});
+
+app.get('/api/health', function(req, res) {
+  res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+app.listen(3000, function() {
+  console.log('RotaLucro API rodando na porta 3000');
 });
