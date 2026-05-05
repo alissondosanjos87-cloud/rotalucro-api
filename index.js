@@ -1,12 +1,13 @@
+// index.js - RotaLucro API v4.0
+console.log('=== RotaLucro API Iniciando ===');
+
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const { supabase, logSeguro, sanitizarErro } = require('./config/supabase');
-const { getWorkerPool } = require('./services/workerPool');
-const routeCache = require('./services/cache');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,54 @@ const generalLimiter = rateLimit({
 app.use('/api/optimize', optimizeLimiter);
 app.use('/api', generalLimiter);
 
+// Health check
+app.get('/', function(req, res) {
+  res.json({
+    status: 'ok',
+    version: '4.0.0',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/health', function(req, res) {
+  res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+app.get('/ping', function(req, res) {
+  res.send('pong');
+});
+
+// Rotas (sem auth para teste)
+app.use('/api/health', require('./routes/health'));
+app.use('/api/optimize', require('./routes/optimize'));
+app.use('/api/track', require('./routes/track'));
+app.use('/api/lucro', require('./routes/lucro'));
+app.use('/api/perfil', require('./routes/perfil'));
+
+// 404
+app.use(function(req, res) {
+  res.status(404).json({
+    error: 'Rota nao encontrada',
+    path: req.originalUrl,
+  });
+});
+
+// Error handler
+app.use(function(err, req, res, next) {
+  console.error('Erro:', err.message);
+  res.status(err.status || 500).json({ error: 'Erro interno' });
+});
+
+// Start
+app.listen(PORT, function() {
+  console.log('RotaLucro API v4.0 - Porta ' + PORT);
+  console.log('URL: http://localhost:' + PORT);
+  console.log('Health: http://localhost:' + PORT + '/api/health');
+  console.log('Otimizar: POST http://localhost:' + PORT + '/api/optimize');
+});
+
+module.exports = app;
 app.set('supabase', supabase);
 
 // Health check
