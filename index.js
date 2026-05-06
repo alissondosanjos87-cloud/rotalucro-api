@@ -1,40 +1,10 @@
-var express = require('express');
-var app = express();
-
-app.use(express.json());
-
-app.get('/', function(req, res) {
-  res.json({ ok: true, msg: 'RotaLucro no ar!', version: '4.0.0' });
-});
-
-app.get('/api/health', function(req, res) {
-  res.json({ ok: true, timestamp: new Date().toISOString() });
-});
-
-// Rota de otimização
-app.post('/api/optimize', function(req, res) {
-  var paradas = req.body.paradas;
-
-  if (!paradas || paradas.length < 2) {
-    return res.status(400).json({ error: 'Minimo 2 paradas' });
-  }
-
-  // Calcula distância entre dois pontos
-  function dist(a, b) {
-    var R = 6371;
-    var dLat = (b.lat - a.lat) * Math.PI / 180;
-    var dLng = (b.lng - a.lng) * Math.PI / 180;
-    var x = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(a.lat * Math.PI/180) * Math.cos(b.lat * Math.PI/180) *
-            Math.sin(dLng/2) * Math.sin(dLng/2);
-    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-  }
-
-  // Nearest Neighbor simples
-  var rest = paradas.slice();
-  var rota = [rest.shift()];
-
-  while (rest.length > 0) {
+require('dotenv').config();const express=require('express');const cors=require('cors');const app=express();
+app.use(cors());app.use(express.json());
+app.use('/api/health',require('./routes/health'));
+app.use('/api/lucro',require('./routes/lucro'));
+app.use('/api/optimize',require('./routes/optimize'));
+app.get('/',(q,r)=>r.json({ok:true}));
+const PORT=process.env.PORT||3000;app.listen(PORT,()=>console.log('ok'));  while (rest.length > 0) {
     var melhor = 0;
     var melhorD = Infinity;
     var atual = rota[rota.length - 1];
