@@ -1,40 +1,16 @@
-// index.js - RotaLucro API v3.0
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-// Middlewares básicos
-app.use(helmet());
-app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '1mb' }));
-app.use(morgan('dev'));
+app.get('/', (req, res) => res.send('RotaLucro API online'));
+app.get('/api/health', (req, res) => res.json({ ok: true, node: process.version }));
 
-// Rate limit simples para não derrubar no Render free
-app.use(rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: 200,
-  standardHeaders: true
-}));
-
-// Supabase (opcional)
-const supabase = require('./config/supabase');
-app.set('supabase', supabase);
-
-// Rotas
-app.use('/api/health', require('./routes/health'));
-app.use('/api/lucro', require('./routes/lucro'));
-app.use('/api/optimize', require('./routes/optimize'));
-app.use('/api/perfil', require('./routes/perfil'));
-app.use('/api/track', require('./routes/track'));
-
-// Rota raiz
-app.get('/', (req, res) => {
-  res.json({ 
+app.listen(process.env.PORT || 3000, () => {
+  console.log('API rodando');
+});  res.json({ 
     message: 'RotaLucro API v3.0',
     status: 'online',
     endpoints: ['/api/health','/api/lucro','/api/optimize']
