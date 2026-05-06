@@ -1,40 +1,6 @@
-// otimizador/index.js
-// Orquestrador adaptativo: se ajusta ao tamanho da rota
-
-const multiStart = require('./multiStart');
-const twoOpt = require('./twoOpt');
-const nearestNeighbor = require('./nearestNeighbor');
-const { calcularDistanciaTotal, estimarTempoTotal } = require('./utils');
-const cacheDist = require('./cache');
-
-/**
- * Otimização adaptativa
- * A qualidade se ajusta ao tamanho da rota
- */
-async function otimizarRotaAvancada(paradas, options = {}) {
-  if (!paradas || paradas.length < 2) {
-    return {
-      rota: paradas || [],
-      metricas: {
-        distanciaTotal: 0,
-        tempoEstimado: 0,
-        algoritmo: 'sem-otimizacao',
-        totalParadas: 0,
-      },
-    };
-  }
-
-  const inicio = Date.now();
-  const qtd = paradas.length;
-
-  // 🔥 ADAPTATIVO: qualidade vs velocidade
-  const tentativas = qtd <= 60 ? 6 :      // Máxima qualidade
-                     qtd <= 100 ? 4 :     // Equilíbrio
-                     qtd <= 150 ? 2 :     // Prioriza velocidade
-                     1;                   // Só uma tentativa
-
-  const refinoFinal = qtd <= 100;         // Só refina até 100
-  const usarMultiStart = qtd >= 4;        // Multi-start só com 4+
+const nn=require('./nearestNeighbor');const two=require('./twoOpt');const {calcularDistanciaTotal,estimarTempoTotal}=require('./utils');
+async function otimizarRotaAvancada(paradas){if(!paradas||paradas.length<2)return{rota:paradas||[]};let rota=nn(paradas);const di=calcularDistanciaTotal(rota);rota=two(rota).rota;const df=calcularDistanciaTotal(rota);return{rota,metricas:{distanciaInicial:+di.toFixed(2),distanciaTotal:+df.toFixed(2),economia:di?+((di-df)/di*100).toFixed(1):0,tempoEstimado:Math.round(estimarTempoTotal(rota)),algoritmo:'2-opt'}};}
+module.exports={otimizarRotaAvancada};  const usarMultiStart = qtd >= 4;        // Multi-start só com 4+
   const limiteWorker = qtd > 30;          // Worker thread só acima de 30
 
   let rota;
