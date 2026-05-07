@@ -8,7 +8,6 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
-// Cache simples
 const cache = new Map();
 const getCache = (k) => {
   const v = cache.get(k);
@@ -18,19 +17,15 @@ const getCache = (k) => {
 };
 const setCache = (k, d, ttl = 300) => cache.set(k, { data: d, exp: Date.now() + ttl * 1000 });
 
-// Haversine
 const toRad = d => d * Math.PI / 180;
 const haversine = (a, b) => {
   const R = 6371;
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
-  const la1 = toRad(a.lat);
-  const la2 = toRad(b.lat);
-  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+  const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
   return 2 * R * Math.asin(Math.sqrt(h));
 };
 
-// 2-opt
 const twoOpt = (points) => {
   let route = [...points];
   let improved = true;
@@ -50,105 +45,72 @@ const twoOpt = (points) => {
   return route;
 };
 
-// ROTAS API
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), version: '3.1' });
-});
+app.get('/api/health', (req, res) => res.json({ ok: true, version: '4.0' }));
 
-app.post('/api/lucro', (req, res) => {
-  const { valorEntrega = 7, km = 0, tempoMin = 0, custoKm = 0.75, custoHora = 18 } = req.body || {};
-  const custo = km * custoKm + (tempoMin / 60) * custoHora;
-  const lucro = valorEntrega - custo;
-  const margem = valorEntrega? (lucro / valorEntrega * 100) : 0;
-  res.json({ valorEntrega, km, tempoMin, custo: +custo.toFixed(2), lucro: +lucro.toFixed(2), margem: +margem.toFixed(1) });
-});
-
-app.post('/api/optimize', (req, res) => {
-  try {
-    const { points = [], start } = req.body || {};
-    if (points.length < 2) return res.status(400).json({ error: 'Min 2 pontos' });
-    const key = JSON.stringify({ points, start });
-    const cached = getCache(key);
-    if (cached) return res.json({...cached, cached: true });
-    const startPoint = start || points[0];
-    const rest = points.filter(p => p!== startPoint);
-    const optimized = [startPoint,...twoOpt([startPoint,...rest]).slice(1)];
-    let totalKm = 0;
-    for (let i = 0; i < optimized.length - 1; i++) totalKm += haversine(optimized[i], optimized[i+1]);
-    const result = { order: optimized, totalKm: +totalKm.toFixed(2), totalMin: Math.round(totalKm / 0.35), economia: `${Math.max(5, Math.min(35, Math.round(points.length * 2.3)))}%` };
-    setCache(key, result);
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// NOVA ROTA: Upload de arquivo (CSV + EXCEL)
 app.post('/api/upload', upload.single('file'), (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo' });
     
     const fileName = req.file.originalname || '';
     let text = '';
     
-    // Detecta tipo de arquivo
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      // Arquivo Excel
-      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
       text = XLSX.utils.sheet_to_csv(sheet);
     } else {
-      // Arquivo CSV/TXT
       text = req.file.buffer.toString('utf8');
     }
     
     const points = processarPlanilha(text, fileName);
-    
-    if (points.length < 2) {
-      return res.status(400).json({ error: 'Poucos endereços. Min 2. Encontrados: ' + points.length });
-    }
+    if (points.length < 2) return res.status(400).json({ error: 'Poucos endereços. Min 2.' });
     
     const startPoint = points[0];
-    const rest = points.filter(p => p !== startPoint);
-    const optimized = [startPoint, ...twoOpt([startPoint, ...rest]).slice(1)];
+    const optimized = [startPoint, ...twoOpt([startPoint, ...points.filter(p => p !== startPoint)]).slice(1)];
     
     let totalKm = 0;
     for (let i = 0; i < optimized.length - 1; i++) totalKm += haversine(optimized[i], optimized[i+1]);
     
     res.json({
       success: true,
-      plataforma: points[0]?.fonte || 'desconhecida',
-      order: optimized,
+      plataforma: points[0]?.fonte || 'outro',
       totalParadas: optimized.length,
       totalKm: +totalKm.toFixed(2),
       totalMin: Math.round(totalKm / 0.35),
-      economia: `${Math.max(5, Math.min(35, Math.round(points.length * 2.3)))}%`,
-      lucroEstimado: +(optimized.length * 12.75).toFixed(2)
+      economia: Math.max(5, Math.min(35, Math.round(optimized.length * 2.3))),
+      lucroEstimado: +(optimized.length * 12.75).toFixed(2),
+      paradas: optimized.map((p, i) => ({
+        ordem: i + 1,
+        nome: p.nome || p.endereco || 'Parada ' + (i+1),
+        lat: p.lat,
+        lng: p.lng,
+        bairro: p.bairro || '',
+        fonte: p.fonte
+      }))
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-function processarPlanilha(csvText, fileName) {
-  const linhas = csvText.split(/\r?\n/).filter(l => l.trim());
+function processarPlanilha(text, fileName) {
+  const linhas = text.split(/\r?\n/).filter(l => l.trim());
   if (linhas.length < 2) return [];
   
   const cabecalho = linhas[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
   
-  // Detecta plataforma
-  const isAmazon = fileName.toLowerCase().includes('amazon') || cabecalho.some(h => h.includes('amazon'));
-  const isShopee = fileName.toLowerCase().includes('shopee') || cabecalho.some(h => h.includes('shopee'));
-  const isMeli = fileName.toLowerCase().includes('meli') || fileName.toLowerCase().includes('mercado') || cabecalho.some(h => h.includes('mercado') || h.includes('meli'));
+  // Detecta plataforma pelo nome do arquivo
+  const fn = fileName.toLowerCase();
+  const isShopee = fn.includes('shopee');
+  const isAmazon = fn.includes('amazon');
+  const isMeli = fn.includes('meli') || fn.includes('mercado');
   const plataforma = isAmazon ? 'amazon' : isShopee ? 'shopee' : isMeli ? 'meli' : 'outro';
   
-  // Mapeia colunas
-  const colEnd = cabecalho.findIndex(h => ['endereco','address','destino','rua','logradouro','destination address'].some(k => h.includes(k)));
+  const colEnd = cabecalho.findIndex(h => ['endereco','address','destino','rua','logradouro'].some(k => h.includes(k)));
   const colLat = cabecalho.findIndex(h => h.includes('lat') || h === 'y');
-  const colLng = cabecalho.findIndex(h => h.includes('lng') || h.includes('lon') || h.includes('long') || h === 'x');
+  const colLng = cabecalho.findIndex(h => h.includes('lng') || h.includes('lon') || h === 'x');
   const colBairro = cabecalho.findIndex(h => h.includes('bairro') || h.includes('district'));
-  const colCidade = cabecalho.findIndex(h => h.includes('cidade') || h.includes('city'));
-  const colPacote = cabecalho.findIndex(h => ['track','codigo','spx','pedido','order','id','tn'].some(k => h.includes(k)));
+  const colPacote = cabecalho.findIndex(h => ['track','codigo','spx','pedido','id','tn'].some(k => h.includes(k)));
   
   const points = [];
   
@@ -160,152 +122,217 @@ function processarPlanilha(csvText, fileName) {
     let lng = colLng >= 0 ? parseFloat(String(cols[colLng]).replace(',', '.')) : NaN;
     const endereco = colEnd >= 0 ? cols[colEnd] : '';
     const bairro = colBairro >= 0 ? cols[colBairro] : '';
-    const cidade = colCidade >= 0 ? cols[colCidade] : '';
     const pacote = colPacote >= 0 ? cols[colPacote] : '';
     
-    if (isNaN(lat) || isNaN(lng)) {
-      lat = -23.55 + (Math.random() - 0.5) * 0.1;
-      lng = -46.63 + (Math.random() - 0.5) * 0.1;
-    }
+    if (isNaN(lat) || isNaN(lng)) continue;
     
-    if (!isNaN(lat) && !isNaN(lng)) {
-      points.push({ nome: endereco || `Parada ${i}`, lat, lng, endereco, bairro, cidade, pacote, fonte: plataforma });
-    }
+    points.push({ nome: endereco, lat, lng, bairro, pacote, fonte: plataforma });
   }
   
   return points;
 }
 
-app.get('/api/perfil/:id', (req, res) => {
-  res.json({ id: req.params.id, nome: 'Alisson', plano: 'PRO', entregasHoje: 12, ganhoHoje: 84.5 });
-});
+app.get('/api/perfil/:id', (req, res) => res.json({ nome: 'Alisson', plano: 'PRO' }));
+app.post('/api/track', (req, res) => res.json({ ok: true }));
 
-app.post('/api/track', (req, res) => {
-  console.log('TRACK', req.body);
-  res.json({ ok: true });
-});
-
-// FRONTEND
+// FRONTEND COMPLETO
 const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RotaLucro</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-body{margin:0;background:#0F172A;color:#fff;font-family:system-ui;display:grid;place-items:center;min-height:100vh}
-.c{background:#1E293B;padding:24px;border-radius:20px;width:92%;max-width:420px}
-.l{font-size:32px;font-weight:800;text-align:center;margin-bottom:18px}
-.l span{color:#00C853}
-input{width:100%;padding:14px;margin:6px 0;border:0;border-radius:12px;background:#0F172A;color:#fff;box-sizing:border-box}
-button{width:100%;padding:14px;border:0;border-radius:12px;background:#00C853;font-weight:800;margin-top:8px;color:#000;cursor:pointer}
-.o{background:#0F172A;padding:16px;border-radius:12px;margin:10px 0;border-left:4px solid #00C853;cursor:pointer;font-weight:600}
-.o:hover{background:#1a2738}
-.h{display:none}
-.r{background:#0F172A;padding:14px;border-radius:12px;margin:8px 0;border-left:4px solid #FFD700;text-align:left;font-size:13px}
-.r strong{display:block;font-size:14px;margin-bottom:3px}
-.r span{color:#94A3B8;font-size:12px}
-.g{color:#00C853;font-weight:700}
-.y{color:#FFD700;font-weight:700}
-#progress{display:none;text-align:center;padding:20px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:100vh}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;background:#0F172A}
+.screen.active{display:flex}
+
+/* Login */
+.scr-login{justify-content:center;align-items:center;padding:24px;background:radial-gradient(circle at 50% -10%,#1e293b,#0F172A 45%,#020617)}
+.login-box{width:100%;max-width:340px;text-align:center}
+.login-box h1{font-size:32px;font-weight:800;margin-bottom:4px}
+.login-box h1 span{color:#00C853}
+.login-box p{color:#94A3B8;font-size:14px;margin-bottom:24px}
+.login-box input{width:100%;padding:14px;margin:6px 0;border:1.5px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;font-size:15px}
+.login-box button{width:100%;padding:14px;border:0;border-radius:14px;background:#00C853;color:#022c12;font-weight:800;font-size:16px;margin-top:12px;cursor:pointer}
+
+/* Home */
+.scr-home{padding:20px;overflow-y:auto}
+.home-title{font-size:22px;font-weight:800;margin-bottom:20px}
+.home-title span{color:#00C853}
+.card{background:#1E293B;padding:16px;border-radius:16px;margin-bottom:10px;border-left:4px solid #00C853;cursor:pointer;font-weight:600}
+.card:active{transform:scale(.98)}
+.card span{display:block;color:#94A3B8;font-size:12px;margin-top:4px}
+.card.import{border-left-color:#00C853}
+
+/* Mapa */
+.scr-map{background:#000}
+#map{flex:1;z-index:1}
+.topbar{position:absolute;top:12px;left:12px;right:12px;height:50px;background:rgba(15,23,42,.94);backdrop-filter:blur(14px);border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:1000;border:1px solid rgba(255,255,255,.08)}
+.topbar button{width:36px;height:36px;border-radius:10px;border:0;background:rgba(255,255,255,.06);color:#fff;font-size:18px;cursor:pointer}
+.topbar .title{text-align:center;font-weight:700;font-size:14px}
+.topbar .title small{display:block;color:#94A3B8;font-size:11px}
+.sheet{position:absolute;bottom:0;left:0;right:0;background:#0F172A;border-radius:24px 24px 0 0;padding:14px 18px 18px;box-shadow:0 -8px 32px rgba(0,0,0,.5);z-index:1000;border-top:1px solid rgba(255,255,255,.08)}
+.sheet-handle{width:36px;height:4px;background:#334155;border-radius:2px;margin:0 auto 12px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px;margin-bottom:14px}
+.stat span{font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600}
+.stat strong{display:block;font-size:20px;font-weight:800;margin-top:2px}
+.stat.green strong{color:#00C853}
+.btn-start{width:100%;height:52px;background:#00C853;color:#022c12;font-weight:800;font-size:15px;border:0;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-start:active{transform:scale(.98)}
+.pin{width:36px;height:44px;position:relative;display:grid;place-items:center;font-weight:800;color:#fff;font-size:14px}
+.pin::before{content:'';position:absolute;width:36px;height:36px;background:#00C853;border-radius:50% 50% 50% 0;transform:rotate(-45deg);top:0;left:0;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.pin span{position:relative;z-index:1}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:13px;z-index:3000;opacity:0;transition:.3s;white-space:nowrap}
+.toast.show{opacity:1}
+#progress{display:none;text-align:center;padding:30px}
 .spinner{width:40px;height:40px;border:4px solid #334155;border-top-color:#00C853;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
 @keyframes s{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-<div class="c" id="a">
-  <div class="l">Rota<span>Lucro</span></div>
-  <input type="email" value="entregador@rotalucro.com" placeholder="Email">
-  <input type="password" value="123456" placeholder="Senha">
-  <button onclick="a.classList.add('h');b.classList.remove('h')">ENTRAR</button>
-  <p style="text-align:center;opacity:.7;font-size:13px;margin-top:16px">Feito por entregadores para entregadores</p>
+
+<!-- LOGIN -->
+<div class="screen scr-login active" id="loginScreen">
+  <div class="login-box">
+    <h1>Rota<span>Lucro</span></h1>
+    <p>O Circuit brasileiro</p>
+    <input type="email" value="entregador@rotalucro.com" placeholder="Email">
+    <input type="password" value="123456" placeholder="Senha">
+    <button onclick="showScreen('home')">ENTRAR</button>
+    <p style="font-size:12px;color:#475569;margin-top:20px">Feito por entregadores para entregadores</p>
+  </div>
 </div>
 
-<div class="c h" id="b">
-  <h3 style="text-align:center;margin-bottom:4px">Como adicionar sua rota?</h3>
-  <p style="text-align:center;color:#94A3B8;font-size:13px;margin-bottom:18px">Planilhas da Shopee, Mercado Livre ou Amazon</p>
+<!-- HOME -->
+<div class="screen scr-home" id="homeScreen">
+  <div class="home-title">Rota<span>Lucro</span></div>
+  <p style="color:#94A3B8;font-size:14px;margin-bottom:20px">Como quer adicionar sua rota?</p>
   
-  <div class="o" onclick="alert('📸 Funcionalidade em breve!')">📸 TIRAR FOTO DA LISTA</div>
-  <div class="o" onclick="alert('⌨️ Funcionalidade em breve!')">⌨️ DIGITAR ENDEREÇOS</div>
-  <div class="o" onclick="alert('🎤 Funcionalidade em breve!')">🎤 GRAVAR EM ÁUDIO</div>
+  <div class="card" onclick="alert('📸 Em breve!')">📸 TIRAR FOTO DA LISTA<span>Capture a lista de entregas</span></div>
+  <div class="card" onclick="alert('⌨️ Em breve!')">⌨️ DIGITAR ENDEREÇOS<span>Digite um por linha</span></div>
+  <div class="card" onclick="alert('🎤 Em breve!')">🎤 GRAVAR EM ÁUDIO<span>Fale os endereços</span></div>
   
-  <label class="o" style="border-left-color:#FFD700;display:block;text-align:left">
+  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarArquivo(this.files[0])">
+  <div class="card import" onclick="document.getElementById('fileInput').click()">
     📁 IMPORTAR PLANILHA
-    <span style="display:block;color:#94A3B8;font-size:12px;margin-top:4px">CSV • Excel (.xlsx) • Shopee • Mercado Livre • Amazon</span>
-  </label>
-  
-  <input type="file" id="fileInput" accept=".csv,.txt,.xlsx,.xls" style="display:none" onchange="importarArquivo(this.files[0])">
-  <button onclick="document.getElementById('fileInput').click()" style="background:#FFD700;color:#000;font-weight:800">
-    📂 SELECIONAR ARQUIVO
-  </button>
-  
-  <div id="fileInfo"></div>
+    <span>CSV • Excel • Shopee • Mercado Livre • Amazon</span>
+  </div>
+
   <div id="progress"><div class="spinner"></div><p style="color:#94A3B8">Processando e otimizando rota...</p></div>
-  <div id="resultado" class="h"></div>
-  <button class="h" id="btnVoltar" onclick="voltar()" style="background:#334155;color:#fff;margin-top:16px">← NOVA IMPORTAÇÃO</button>
+  <div id="fileInfo" style="font-size:12px;color:#94A3B8;text-align:center;margin-top:8px"></div>
+</div>
+
+<!-- MAPA -->
+<div class="screen scr-map" id="mapScreen">
+  <div id="map"></div>
+  <div class="topbar">
+    <button onclick="showScreen('home')">←</button>
+    <div class="title">Rota Otimizada<small id="routeInfo">0 paradas</small></div>
+    <button>⋮</button>
+  </div>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="stats">
+      <div class="stat"><span>Paradas</span><strong id="statParadas">0</strong></div>
+      <div class="stat"><span>Distância</span><strong id="statDistancia">0 km</strong></div>
+      <div class="stat green"><span>Lucro Est.</span><strong id="statLucro">R$ 0</strong></div>
+    </div>
+    <button class="btn-start" onclick="iniciarRota()">▶ INICIAR ROTA</button>
+  </div>
+  <div class="toast" id="toast"></div>
 </div>
 
 <script>
-var fileInput = document.getElementById('fileInput');
+var map, markers = [], rotaData = null;
 
-document.querySelector('.o[style*="border-left-color:#FFD700"]').addEventListener('click', function() {
-  fileInput.click();
-});
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id + 'Screen').classList.add('active');
+  if (id === 'map' && map) setTimeout(function() { map.invalidateSize(); }, 300);
+}
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
 
 async function importarArquivo(file) {
   if (!file) return;
   
-  var progress = document.getElementById('progress');
-  var fileInfo = document.getElementById('fileInfo');
-  var resultado = document.getElementById('resultado');
-  var btnVoltar = document.getElementById('btnVoltar');
-  var cards = document.querySelectorAll('.o');
-  
-  fileInfo.textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
-  progress.style.display = 'block';
-  resultado.classList.add('h');
-  cards.forEach(function(c) { c.style.display = 'none'; });
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('fileInfo').textContent = '📄 ' + file.name;
   
   var formData = new FormData();
   formData.append('file', file);
   
   try {
-    var response = await fetch('/api/upload', { method: 'POST', body: formData });
-    var data = await response.json();
-    progress.style.display = 'none';
+    var res = await fetch('/api/upload', { method: 'POST', body: formData });
+    var data = await res.json();
+    document.getElementById('progress').style.display = 'none';
     
     if (data.error) {
-      fileInfo.textContent = '❌ ' + data.error;
-      cards.forEach(function(c) { c.style.display = ''; });
+      document.getElementById('fileInfo').textContent = '❌ ' + data.error;
       return;
     }
     
-    resultado.classList.remove('h');
-    resultado.innerHTML = 
-      '<div class="r"><strong>📊 ROTA OTIMIZADA</strong><span>🏷️ ' + data.plataforma.toUpperCase() + ' | ' + data.totalParadas + ' paradas</span></div>' +
-      '<div class="r"><strong>📏 DISTÂNCIA</strong><span class="g">' + data.totalKm + ' km</span></div>' +
-      '<div class="r"><strong>⏱️ TEMPO ESTIMADO</strong><span>' + data.totalMin + ' minutos</span></div>' +
-      '<div class="r"><strong>📈 ECONOMIA</strong><span class="g">' + data.economia + '</span></div>' +
-      '<div class="r"><strong>💰 LUCRO ESTIMADO</strong><span class="y">R$ ' + data.lucroEstimado.toFixed(2).replace('.', ',') + '</span></div>' +
-      '<p style="font-size:12px;color:#94A3B8;margin-top:12px">✅ Ordem otimizada:</p>' +
-      data.order.map(function(p, i) {
-        return '<p style="font-size:12px;margin:3px 0;color:#fff">' + (i+1) + '. ' + (p.nome || p.endereco || 'Parada '+(i+1)) + ' <span style="color:#94A3B8">(' + p.fonte + ')</span></p>';
-      }).join('');
-    
-    btnVoltar.classList.remove('h');
-  } catch (err) {
-    progress.style.display = 'none';
-    fileInfo.textContent = '❌ Erro ao processar';
-    cards.forEach(function(c) { c.style.display = ''; });
+    rotaData = data;
+    showScreen('map');
+    setTimeout(function() { initMap(data); }, 400);
+    toast('✅ ' + data.totalParadas + ' paradas otimizadas!');
+  } catch (e) {
+    document.getElementById('progress').style.display = 'none';
+    document.getElementById('fileInfo').textContent = '❌ Erro ao processar';
   }
 }
 
-function voltar() {
-  document.getElementById('resultado').classList.add('h');
-  document.getElementById('btnVoltar').classList.add('h');
-  document.getElementById('fileInfo').textContent = '';
-  document.querySelectorAll('.o').forEach(function(c) { c.style.display = ''; });
-  fileInput.value = '';
+function initMap(data) {
+  if (map) { map.remove(); map = null; markers = []; }
+  
+  map = L.map('map', { zoomControl: false }).setView([-23.55, -46.63], 12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  
+  var pts = [];
+  data.paradas.forEach(function(p, i) {
+    pts.push([p.lat, p.lng]);
+    
+    var icon = L.divIcon({
+      className: '',
+      html: '<div class="pin"><span>' + (i+1) + '</span></div>',
+      iconSize: [36, 44],
+      iconAnchor: [18, 40]
+    });
+    
+    var m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+    m.bindPopup('<b>' + (i+1) + '. ' + p.nome + '</b><br><small>' + p.bairro + '</small>');
+    markers.push(m);
+  });
+  
+  if (pts.length > 1) {
+    L.polyline(pts, { color: '#00C853', weight: 5, opacity: .85 }).addTo(map);
+  }
+  
+  var bounds = L.latLngBounds(pts);
+  map.fitBounds(bounds.pad(0.2));
+  
+  document.getElementById('statParadas').textContent = data.totalParadas;
+  document.getElementById('statDistancia').textContent = data.totalKm.toFixed(0) + ' km';
+  document.getElementById('statLucro').textContent = 'R$ ' + data.lucroEstimado.toFixed(0);
+  document.getElementById('routeInfo').textContent = data.totalParadas + ' paradas | ' + data.plataforma.toUpperCase();
+}
+
+function iniciarRota() {
+  if (markers.length > 0) {
+    map.flyTo(markers[0].getLatLng(), 16, { duration: 1.5 });
+    setTimeout(function() { markers[0].openPopup(); }, 1600);
+  }
+  toast('🚀 Rota iniciada! Vá para a parada 1');
 }
 </script>
 </body>
@@ -314,4 +341,4 @@ function voltar() {
 app.get('/', (req, res) => res.send(html));
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log('RotaLucro v3.1 on ' + port));
+app.listen(port, () => console.log('RotaLucro v4.0 on ' + port));
