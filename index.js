@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const XLSX = require('xlsx');
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 
@@ -51,7 +52,7 @@ const twoOpt = (points) => {
 
 // ROTAS API
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), version: '3.0' });
+  res.json({ ok: true, time: new Date().toISOString(), version: '3.1' });
 });
 
 app.post('/api/lucro', (req, res) => {
@@ -59,12 +60,7 @@ app.post('/api/lucro', (req, res) => {
   const custo = km * custoKm + (tempoMin / 60) * custoHora;
   const lucro = valorEntrega - custo;
   const margem = valorEntrega? (lucro / valorEntrega * 100) : 0;
-  res.json({
-    valorEntrega, km, tempoMin,
-    custo: +custo.toFixed(2),
-    lucro: +lucro.toFixed(2),
-    margem: +margem.toFixed(1)
-  });
+  res.json({ valorEntrega, km, tempoMin, custo: +custo.toFixed(2), lucro: +lucro.toFixed(2), margem: +margem.toFixed(1) });
 });
 
 app.post('/api/optimize', (req, res) => {
@@ -79,12 +75,7 @@ app.post('/api/optimize', (req, res) => {
     const optimized = [startPoint,...twoOpt([startPoint,...rest]).slice(1)];
     let totalKm = 0;
     for (let i = 0; i < optimized.length - 1; i++) totalKm += haversine(optimized[i], optimized[i+1]);
-    const result = {
-      order: optimized,
-      totalKm: +totalKm.toFixed(2),
-      totalMin: Math.round(totalKm / 0.35),
-      economia: `${Math.max(5, Math.min(35, Math.round(points.length * 2.3)))}%`
-    };
+    const result = { order: optimized, totalKm: +totalKm.toFixed(2), totalMin: Math.round(totalKm / 0.35), economia: `${Math.max(5, Math.min(35, Math.round(points.length * 2.3)))}%` };
     setCache(key, result);
     res.json(result);
   } catch (e) {
@@ -92,30 +83,39 @@ app.post('/api/optimize', (req, res) => {
   }
 });
 
-// NOVA ROTA: Upload de arquivo
+// NOVA ROTA: Upload de arquivo (CSV + EXCEL)
 app.post('/api/upload', upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
-    const text = req.file.buffer.toString('utf8');
     const fileName = req.file.originalname || '';
+    let text = '';
+    
+    // Detecta tipo de arquivo
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      // Arquivo Excel
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      text = XLSX.utils.sheet_to_csv(sheet);
+    } else {
+      // Arquivo CSV/TXT
+      text = req.file.buffer.toString('utf8');
+    }
+    
     const points = processarPlanilha(text, fileName);
     
     if (points.length < 2) {
-      return res.status(400).json({ error: 'Poucos endereços encontrados. Min 2.' });
+      return res.status(400).json({ error: 'Poucos endereços. Min 2. Encontrados: ' + points.length });
     }
     
-    // Otimiza
     const startPoint = points[0];
     const rest = points.filter(p => p !== startPoint);
     const optimized = [startPoint, ...twoOpt([startPoint, ...rest]).slice(1)];
     
     let totalKm = 0;
-    for (let i = 0; i < optimized.length - 1; i++) {
-      totalKm += haversine(optimized[i], optimized[i+1]);
-    }
+    for (let i = 0; i < optimized.length - 1; i++) totalKm += haversine(optimized[i], optimized[i+1]);
     
-    const resultado = {
+    res.json({
       success: true,
       plataforma: points[0]?.fonte || 'desconhecida',
       order: optimized,
@@ -124,9 +124,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       totalMin: Math.round(totalKm / 0.35),
       economia: `${Math.max(5, Math.min(35, Math.round(points.length * 2.3)))}%`,
       lucroEstimado: +(optimized.length * 12.75).toFixed(2)
-    };
-    
-    res.json(resultado);
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -141,7 +139,7 @@ function processarPlanilha(csvText, fileName) {
   // Detecta plataforma
   const isAmazon = fileName.toLowerCase().includes('amazon') || cabecalho.some(h => h.includes('amazon'));
   const isShopee = fileName.toLowerCase().includes('shopee') || cabecalho.some(h => h.includes('shopee'));
-  const isMeli = fileName.toLowerCase().includes('meli') || fileName.toLowerCase().includes('mercado') || cabecalho.some(h => h.includes('mercado'));
+  const isMeli = fileName.toLowerCase().includes('meli') || fileName.toLowerCase().includes('mercado') || cabecalho.some(h => h.includes('mercado') || h.includes('meli'));
   const plataforma = isAmazon ? 'amazon' : isShopee ? 'shopee' : isMeli ? 'meli' : 'outro';
   
   // Mapeia colunas
@@ -165,19 +163,13 @@ function processarPlanilha(csvText, fileName) {
     const cidade = colCidade >= 0 ? cols[colCidade] : '';
     const pacote = colPacote >= 0 ? cols[colPacote] : '';
     
-    // Se não tem coordenadas, gera próximas de SP
     if (isNaN(lat) || isNaN(lng)) {
       lat = -23.55 + (Math.random() - 0.5) * 0.1;
       lng = -46.63 + (Math.random() - 0.5) * 0.1;
     }
     
     if (!isNaN(lat) && !isNaN(lng)) {
-      points.push({
-        nome: endereco || `Parada ${i}`,
-        lat, lng,
-        endereco, bairro, cidade, pacote,
-        fonte: plataforma
-      });
+      points.push({ nome: endereco || `Parada ${i}`, lat, lng, endereco, bairro, cidade, pacote, fonte: plataforma });
     }
   }
   
@@ -210,12 +202,11 @@ button{width:100%;padding:14px;border:0;border-radius:12px;background:#00C853;fo
 .o{background:#0F172A;padding:16px;border-radius:12px;margin:10px 0;border-left:4px solid #00C853;cursor:pointer;font-weight:600}
 .o:hover{background:#1a2738}
 .h{display:none}
-.r{background:#0F172A;padding:14px;border-radius:12px;margin:10px 0;border-left:4px solid #FFD700;text-align:left;font-size:13px}
-.r strong{display:block;font-size:15px;margin-bottom:4px}
-.r span{color:#94A3B8}
+.r{background:#0F172A;padding:14px;border-radius:12px;margin:8px 0;border-left:4px solid #FFD700;text-align:left;font-size:13px}
+.r strong{display:block;font-size:14px;margin-bottom:3px}
+.r span{color:#94A3B8;font-size:12px}
 .g{color:#00C853;font-weight:700}
-.y{color:#FFD700}
-#fileInfo{margin-top:8px;font-size:13px;color:#94A3B8;text-align:center}
+.y{color:#FFD700;font-weight:700}
 #progress{display:none;text-align:center;padding:20px}
 .spinner{width:40px;height:40px;border:4px solid #334155;border-top-color:#00C853;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
 @keyframes s{to{transform:rotate(360deg)}}
@@ -232,38 +223,31 @@ button{width:100%;padding:14px;border:0;border-radius:12px;background:#00C853;fo
 
 <div class="c h" id="b">
   <h3 style="text-align:center;margin-bottom:4px">Como adicionar sua rota?</h3>
-  <p style="text-align:center;color:#94A3B8;font-size:13px;margin-bottom:18px">Importe planilhas da Shopee, Mercado Livre ou Amazon</p>
+  <p style="text-align:center;color:#94A3B8;font-size:13px;margin-bottom:18px">Planilhas da Shopee, Mercado Livre ou Amazon</p>
   
   <div class="o" onclick="alert('📸 Funcionalidade em breve!')">📸 TIRAR FOTO DA LISTA</div>
   <div class="o" onclick="alert('⌨️ Funcionalidade em breve!')">⌨️ DIGITAR ENDEREÇOS</div>
   <div class="o" onclick="alert('🎤 Funcionalidade em breve!')">🎤 GRAVAR EM ÁUDIO</div>
   
   <label class="o" style="border-left-color:#FFD700;display:block;text-align:left">
-    📁 IMPORTAR PLANILHA (CSV)
-    <span style="display:block;color:#94A3B8;font-size:12px;margin-top:4px">Shopee • Mercado Livre • Amazon</span>
+    📁 IMPORTAR PLANILHA
+    <span style="display:block;color:#94A3B8;font-size:12px;margin-top:4px">CSV • Excel (.xlsx) • Shopee • Mercado Livre • Amazon</span>
   </label>
   
-  <input type="file" id="fileInput" accept=".csv,.txt" style="display:none" onchange="importarArquivo(this.files[0])">
+  <input type="file" id="fileInput" accept=".csv,.txt,.xlsx,.xls" style="display:none" onchange="importarArquivo(this.files[0])">
   <button onclick="document.getElementById('fileInput').click()" style="background:#FFD700;color:#000;font-weight:800">
     📂 SELECIONAR ARQUIVO
   </button>
   
   <div id="fileInfo"></div>
-  
-  <div id="progress">
-    <div class="spinner"></div>
-    <p style="color:#94A3B8">Processando e otimizando rota...</p>
-  </div>
-  
+  <div id="progress"><div class="spinner"></div><p style="color:#94A3B8">Processando e otimizando rota...</p></div>
   <div id="resultado" class="h"></div>
-  
-  <button class="h" id="btnVoltar" onclick="voltar()" style="background:#334155;color:#fff">← NOVA IMPORTAÇÃO</button>
+  <button class="h" id="btnVoltar" onclick="voltar()" style="background:#334155;color:#fff;margin-top:16px">← NOVA IMPORTAÇÃO</button>
 </div>
 
 <script>
 var fileInput = document.getElementById('fileInput');
 
-// Também permite clicar no card
 document.querySelector('.o[style*="border-left-color:#FFD700"]').addEventListener('click', function() {
   fileInput.click();
 });
@@ -277,7 +261,6 @@ async function importarArquivo(file) {
   var btnVoltar = document.getElementById('btnVoltar');
   var cards = document.querySelectorAll('.o');
   
-  // Mostra progresso
   fileInfo.textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
   progress.style.display = 'block';
   resultado.classList.add('h');
@@ -287,13 +270,8 @@ async function importarArquivo(file) {
   formData.append('file', file);
   
   try {
-    var response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-    
+    var response = await fetch('/api/upload', { method: 'POST', body: formData });
     var data = await response.json();
-    
     progress.style.display = 'none';
     
     if (data.error) {
@@ -302,25 +280,22 @@ async function importarArquivo(file) {
       return;
     }
     
-    // Mostra resultado
     resultado.classList.remove('h');
     resultado.innerHTML = 
-      '<div class="r"><strong>📊 ROTA OTIMIZADA</strong>' +
-      '<span>🏷️ ' + data.plataforma.toUpperCase() + ' | ' + data.totalParadas + ' paradas</span></div>' +
+      '<div class="r"><strong>📊 ROTA OTIMIZADA</strong><span>🏷️ ' + data.plataforma.toUpperCase() + ' | ' + data.totalParadas + ' paradas</span></div>' +
       '<div class="r"><strong>📏 DISTÂNCIA</strong><span class="g">' + data.totalKm + ' km</span></div>' +
       '<div class="r"><strong>⏱️ TEMPO ESTIMADO</strong><span>' + data.totalMin + ' minutos</span></div>' +
       '<div class="r"><strong>📈 ECONOMIA</strong><span class="g">' + data.economia + '</span></div>' +
       '<div class="r"><strong>💰 LUCRO ESTIMADO</strong><span class="y">R$ ' + data.lucroEstimado.toFixed(2).replace('.', ',') + '</span></div>' +
-      '<p style="font-size:12px;color:#94A3B8;margin-top:12px">✅ Ordem otimizada salva! Siga a sequência:</p>' +
+      '<p style="font-size:12px;color:#94A3B8;margin-top:12px">✅ Ordem otimizada:</p>' +
       data.order.map(function(p, i) {
-        return '<p style="font-size:12px;margin:4px 0;color:#fff">' + (i+1) + '. ' + (p.nome || p.endereco || 'Parada ' + (i+1)) + ' <span style="color:#94A3B8">(' + p.fonte + ')</span></p>';
+        return '<p style="font-size:12px;margin:3px 0;color:#fff">' + (i+1) + '. ' + (p.nome || p.endereco || 'Parada '+(i+1)) + ' <span style="color:#94A3B8">(' + p.fonte + ')</span></p>';
       }).join('');
     
     btnVoltar.classList.remove('h');
-    
   } catch (err) {
     progress.style.display = 'none';
-    fileInfo.textContent = '❌ Erro ao processar arquivo';
+    fileInfo.textContent = '❌ Erro ao processar';
     cards.forEach(function(c) { c.style.display = ''; });
   }
 }
@@ -339,4 +314,4 @@ function voltar() {
 app.get('/', (req, res) => res.send(html));
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log('RotaLucro v3.0 on ' + port));
+app.listen(port, () => console.log('RotaLucro v3.1 on ' + port));
