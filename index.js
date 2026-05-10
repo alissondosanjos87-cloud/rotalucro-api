@@ -27,8 +27,6 @@ app.get('/', function(req, res) {
 body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:100vh}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;background:#0F172A}
 .screen.active{display:flex}
-
-/* LOGIN */
 .scr-login{justify-content:center;align-items:center;padding:24px;background:radial-gradient(circle at 50% -10%,#1e293b,#0F172A 45%,#020617)}
 .lb{width:100%;max-width:340px;text-align:center}
 .lb h1{font-size:32px;font-weight:800;margin-bottom:4px}
@@ -37,9 +35,6 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .lb input{width:100%;padding:14px;margin:6px 0;border:1.5px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;font-size:15px}
 .btn{width:100%;padding:14px;border:0;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer}
 .btn-g{background:#00C853;color:#022c12}
-.btn-y{background:#FFD700;color:#000}
-
-/* HOME */
 .scr-home{padding:20px;overflow-y:auto}
 .ht{font-size:22px;font-weight:800;margin-bottom:4px}
 .ht span{color:#00C853}
@@ -48,8 +43,6 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .card:active{transform:scale(.98)}
 .card span{display:block;color:#94A3B8;font-size:12px;margin-top:4px}
 .card.import{border-left-color:#FFD700}
-
-/* MODAL */
 .modal{position:fixed;inset:0;z-index:2000;display:none;align-items:flex-end;justify-content:center}
 .modal.show{display:flex}
 .mb{position:absolute;inset:0;background:rgba(0,0,0,.7)}
@@ -60,8 +53,6 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .mc textarea{width:100%;min-height:200px;background:#0F172A;border:1.5px solid #334155;border-radius:14px;padding:14px;color:#fff;font-size:14px;resize:vertical}
 .mc .mic{width:80px;height:80px;border-radius:50%;background:#FF6D00;margin:0 auto 16px;display:grid;place-items:center;font-size:32px;animation:pu 1.5s infinite}
 @keyframes pu{0%,100%{box-shadow:0 0 20px rgba(255,109,0,.4)}50%{box-shadow:0 0 40px rgba(255,109,0,.7)}}
-
-/* MAPA */
 .scr-map{background:#000}
 #map{flex:1;z-index:1}
 .top{position:absolute;top:12px;left:12px;right:12px;height:48px;background:rgba(15,23,42,.94);backdrop-filter:blur(14px);border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:1000;border:1px solid rgba(255,255,255,.08)}
@@ -91,8 +82,6 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 </style>
 </head>
 <body>
-
-<!-- LOGIN -->
 <div class="screen scr-login active" id="loginScreen">
   <div class="lb">
     <h1>Rota<span>Lucro</span></h1>
@@ -102,27 +91,17 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
     <button class="btn btn-g" onclick="show('home')">ENTRAR</button>
   </div>
 </div>
-
-<!-- HOME -->
 <div class="screen scr-home" id="homeScreen">
   <div class="ht">Rota<span>Lucro</span></div>
   <p class="hs">Como quer adicionar sua rota hoje?</p>
-  
   <div class="card" onclick="openModal('foto')">📸 TIRAR FOTO DA LISTA<span>Capture a lista de entregas</span></div>
   <div class="card" onclick="openModal('digitar')">⌨️ DIGITAR ENDEREÇOS<span>Digite um endereço por linha</span></div>
   <div class="card" onclick="openModal('audio')">🎤 GRAVAR EM ÁUDIO<span>Fale os endereços em voz alta</span></div>
-  
   <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="importarArquivo(this.files[0])">
-  <div class="card import" onclick="document.getElementById('fileInput').click()">
-    📁 IMPORTAR PLANILHA
-    <span>CSV • Excel • Shopee • Mercado Livre • Amazon</span>
-  </div>
-
+  <div class="card import" onclick="document.getElementById('fileInput').click()">📁 IMPORTAR PLANILHA<span>CSV • Excel • Shopee • Mercado Livre • Amazon</span></div>
   <div id="prog"><div class="sp"></div><p style="color:#94A3B8">Processando e otimizando...</p></div>
   <p id="fileInfo" style="font-size:12px;color:#94A3B8;text-align:center;margin-top:8px"></p>
 </div>
-
-<!-- MAPA -->
 <div class="screen scr-map" id="mapScreen">
   <div id="map"></div>
   <div class="top">
@@ -147,28 +126,22 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
   </div>
   <div class="toast" id="toast"></div>
 </div>
-
-<!-- MODAL -->
 <div class="modal" id="modal">
   <div class="mb" onclick="closeModal()"></div>
   <div class="mc" id="modalContent"></div>
 </div>
-
 <script>
 var map, allMarkers = [], rotaData = null;
-
 function show(id) {
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id + 'Screen').classList.add('active');
   if (id === 'map' && map) setTimeout(function() { map.invalidateSize(); }, 400);
 }
-
 function toast(msg) {
   var t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   clearTimeout(t._t); t._t = setTimeout(function() { t.classList.remove('show'); }, 2500);
 }
-
 function openModal(tipo) {
   var mc = document.getElementById('modalContent');
   if (tipo === 'foto') {
@@ -180,25 +153,21 @@ function openModal(tipo) {
   }
   document.getElementById('modal').classList.add('show');
 }
-
 function closeModal() { document.getElementById('modal').classList.remove('show'); }
-
 function processarDigitado() {
   var txt = document.getElementById('txtAddr').value.trim();
   if (!txt) return toast('Digite pelo menos um endereço');
   var linhas = txt.split('\\n').filter(function(l) { return l.trim(); });
-  var pts = linhas.map(function(l, i) {
+  var pts = linhas.map(function(l) {
     return { nome: l.trim(), lat: -23.55 + (Math.random()-.5)*0.08, lng: -46.63 + (Math.random()-.5)*0.08, tipo: 'casa', fonte: 'manual' };
   });
   closeModal();
   otimizarEExibir(pts);
 }
-
 function simularAudio() {
   document.getElementById('audioText').textContent = 'Av Paulista 1000, Rua Augusta 500, Rua Oscar Freire 300';
   document.getElementById('btnAudio').style.display = 'block';
 }
-
 function processarAudio() {
   var pts = [
     { nome: 'Av Paulista, 1000 - Bela Vista', lat: -23.563, lng: -46.654, tipo: 'condominio', fonte: 'audio' },
@@ -208,7 +177,6 @@ function processarAudio() {
   closeModal();
   otimizarEExibir(pts);
 }
-
 async function importarArquivo(file) {
   if (!file) return;
   document.getElementById('prog').style.display = 'block';
@@ -227,13 +195,11 @@ async function importarArquivo(file) {
     document.getElementById('prog').style.display = 'none';
   }
 }
-
 function otimizarEExibir(pts) {
   rotaData = { paradas: pts, totalParadas: pts.length, totalKm: 0, lucroEstimado: (pts.length*12.75).toFixed(2), plataforma: 'manual' };
   show('map');
   setTimeout(function() { initMap(rotaData); }, 500);
 }
-
 function getColor(tipo, fonte) {
   if (fonte === 'amazon') return '#0057FF';
   if (fonte === 'shopee') return '#E10600';
@@ -242,59 +208,37 @@ function getColor(tipo, fonte) {
   if (tipo === 'apto') return '#FF9800';
   return '#00C853';
 }
-
 function initMap(data) {
   if (map) { map.remove(); map = null; }
   allMarkers = [];
   map = L.map('map', { zoomControl: false }).setView([-23.55, -46.63], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-  
   var pts = [];
   var paradas = data.paradas || data.order || [];
-  
   paradas.forEach(function(p, i) {
-    var lat = p.lat || (p.order ? p.lat : -23.55);
-    var lng = p.lng || (p.order ? p.lng : -46.63);
+    var lat = p.lat, lng = p.lng;
     pts.push([lat, lng]);
     var color = getColor(p.tipo, p.fonte);
-    
-    var icon = L.divIcon({
-      className: '',
-      html: '<div class="pin" style="color:' + color + '"><span>' + (i+1) + '</span></div>',
-      iconSize: [34, 42], iconAnchor: [17, 38]
-    });
-    
+    var icon = L.divIcon({ className: '', html: '<div class="pin" style="color:' + color + '"><span>' + (i+1) + '</span></div>', iconSize: [34, 42], iconAnchor: [17, 38] });
     var m = L.marker([lat, lng], { icon: icon, tipo: p.tipo, fonte: p.fonte }).addTo(map);
-    m.bindPopup('<b>' + (i+1) + '. ' + (p.nome || 'Parada '+(i+1)) + '</b><br><small>' + (p.tipo||'casa').toUpperCase() + ' • ' + (p.fonte||'').toUpperCase() + '</small>');
+    m.bindPopup('<b>' + (i+1) + '. ' + (p.nome||'Parada '+(i+1)) + '</b><br><small>' + (p.tipo||'casa').toUpperCase() + ' • ' + (p.fonte||'').toUpperCase() + '</small>');
     allMarkers.push(m);
   });
-  
   if (pts.length > 1) L.polyline(pts, { color: '#00C853', weight: 4, opacity: .85 }).addTo(map);
   if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2));
-  
-  var km = data.totalKm || 0;
   document.getElementById('sp').textContent = paradas.length;
-  document.getElementById('sd').textContent = (km || (Math.random()*10+5).toFixed(0)) + ' km';
-  document.getElementById('sl').textContent = 'R$ ' + (data.lucroEstimado || (paradas.length*12.75).toFixed(0));
+  document.getElementById('sd').textContent = (data.totalKm||0).toFixed(0) + ' km';
+  document.getElementById('sl').textContent = 'R$ ' + (data.lucroEstimado||0);
   document.getElementById('routeInfo').textContent = paradas.length + ' paradas | ' + (data.plataforma||'manual').toUpperCase();
-  
   setTimeout(function() { map.invalidateSize(); }, 400);
 }
-
 function filtrar(type, el) {
   document.querySelectorAll('.fd').forEach(function(d) { d.classList.remove('active'); });
   el.classList.add('active');
-  allMarkers.forEach(function(m) {
-    if (type === 'all' || m.options.fonte === type) m.addTo(map);
-    else map.removeLayer(m);
-  });
+  allMarkers.forEach(function(m) { if (type === 'all' || m.options.fonte === type) m.addTo(map); else map.removeLayer(m); });
 }
-
 function iniciar() {
-  if (allMarkers.length > 0) {
-    map.flyTo(allMarkers[0].getLatLng(), 16, { duration: 1.5 });
-    setTimeout(function() { allMarkers[0].openPopup(); }, 1600);
-  }
+  if (allMarkers.length > 0) { map.flyTo(allMarkers[0].getLatLng(), 16, { duration: 1.5 }); setTimeout(function() { allMarkers[0].openPopup(); }, 1600); }
   toast('🚀 Rota iniciada!');
 }
 </script>
@@ -352,7 +296,7 @@ app.post('/api/upload', upload.single('file'), function(req, res) {
     } else { txt = req.file.buffer.toString('utf8'); }
     
     var pts = processar(txt, fn);
-    if (pts.length < 2) return res.status(400).json({ error: 'Poucos endereços' });
+    if (pts.length < 2) return res.status(400).json({ error: 'Poucos endereços. Encontrados: ' + pts.length });
     var opt = twoOpt(pts), km = 0;
     for (var i = 0; i < opt.length - 1; i++) km += haversine(opt[i], opt[i+1]);
     
@@ -370,23 +314,27 @@ app.post('/api/upload', upload.single('file'), function(req, res) {
 });
 
 function processar(txt, fn) {
-  var linhas = txt.split(/\\r?\\n/).filter(function(l) { return l.trim(); });
+  var linhas = txt.split(/\r?\n/).filter(function(l) { return l.trim(); });
   if (linhas.length < 2) return [];
-  var cab = linhas[0].toLowerCase().split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
+  
+  var cab = linhas[0].split(',').map(function(h) { return h.trim().replace(/"/g, '').toLowerCase(); });
   var pf = fn.toLowerCase().includes('amazon') ? 'amazon' : fn.toLowerCase().includes('shopee') ? 'shopee' : fn.toLowerCase().includes('meli')||fn.toLowerCase().includes('mercado') ? 'meli' : 'outro';
-  var cEnd = cab.findIndex(function(h) { return /endereco|address|destino|rua|logradouro/i.test(h); });
-  var cLat = cab.findIndex(function(h) { return h.includes('lat') || h === 'y'; });
-  var cLng = cab.findIndex(function(h) { return h.includes('lng') || h.includes('lon') || h === 'x'; });
+  
+  var cEnd = cab.findIndex(function(h) { return h.includes('destination') || h.includes('address') || h.includes('endereco') || h.includes('destino') || h.includes('rua') || h.includes('logradouro'); });
+  var cLat = cab.findIndex(function(h) { return h.includes('latitude') || h.includes('lat') || h === 'y'; });
+  var cLng = cab.findIndex(function(h) { return h.includes('longitude') || h.includes('lng') || h.includes('lon') || h === 'x'; });
   var cBai = cab.findIndex(function(h) { return h.includes('bairro') || h.includes('district'); });
+  var cCid = cab.findIndex(function(h) { return h.includes('city') || h.includes('cidade'); });
+  
   var pts = [];
   for (var i = 1; i < linhas.length; i++) {
     var cols = linhas[i].split(',').map(function(c) { return c.trim().replace(/"/g, ''); });
-    if (cols.length < 2) continue;
+    if (cols.length < 3) continue;
     var lat = cLat >= 0 ? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
     var lng = cLng >= 0 ? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
-    if (isNaN(lat) || isNaN(lng)) continue;
+    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) continue;
     var end = cEnd >= 0 ? cols[cEnd] : '';
-    pts.push({ nome: end, lat: lat, lng: lng, bairro: cBai >= 0 ? cols[cBai] : '', tipo: detectarTipo(end), fonte: pf });
+    pts.push({ nome: end, lat: lat, lng: lng, bairro: cBai >= 0 ? cols[cBai] : '', cidade: cCid >= 0 ? cols[cCid] : '', tipo: detectarTipo(end), fonte: pf });
   }
   return pts;
 }
