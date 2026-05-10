@@ -1,43 +1,40 @@
-// otimizador/multiStart.js
-var nearestNeighbor = require('./nearestNeighbor');
-var twoOpt = require('./twoOpt');
-var { calcularDistanciaTotal } = require('./utils');
+const nearestNeighbor = require('./nearestNeighbor');
+const twoOpt = require('./twoOpt');
+const { calcularDistanciaTotal } = require('./utils');
 
 function embaralhar(arr) {
-  var a = arr.slice();
-  for (var i = a.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var tmp = a[i];
-    a[i] = a[j];
-    a[j] = tmp;
+  const a = [...arr];
+
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
+
   return a;
 }
 
-function multiStart(paradas, tentativas) {
-  if (!paradas || paradas.length < 3) return paradas ? paradas.slice() : [];
-  
-  var numTentativas = Math.min(tentativas || 5, Math.max(3, Math.floor(paradas.length / 5)));
-  var melhorRota = null;
-  var melhorDist = Infinity;
+function multiStart(paradas, tentativas = 6) {
+  let melhor = null;
+  let melhorDist = Infinity;
 
-  for (var t = 0; t < numTentativas; t++) {
-    var base = embaralhar(paradas);
-    var rota = nearestNeighbor(base);
-    
+  for (let i = 0; i < tentativas; i++) {
+    const base = i === 0 ? [...paradas] : embaralhar(paradas);
+
+    let rota = nearestNeighbor(base);
+
     if (rota.length >= 4) {
-      var refino = twoOpt(rota, 2);
-      rota = refino.rota;
+      rota = twoOpt(rota, 2).rota;
     }
-    
-    var dist = calcularDistanciaTotal(rota);
-    if (dist < melhorDist) {
-      melhorDist = dist;
-      melhorRota = rota;
+
+    const d = calcularDistanciaTotal(rota);
+
+    if (d < melhorDist) {
+      melhorDist = d;
+      melhor = rota;
     }
   }
 
-  return melhorRota || paradas;
+  return melhor;
 }
 
 module.exports = multiStart;
