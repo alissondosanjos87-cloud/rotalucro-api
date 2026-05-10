@@ -1,0 +1,2 @@
+const {distancia}=require('./utils');
+module.exports=function(rota,max=2){if(!rota||rota.length<4)return{rota};let m=[...rota];for(let k=0;k<max;k++){for(let i=1;i<m.length-2;i++){for(let j=i+1;j<m.length-1;j++){const a=distancia(m[i-1],m[i])+distancia(m[j],m[j+1]);const b=distancia(m[i-1],m[j])+distancia(m[i],m[j+1]);if(b<a-0.01){m=[...m.slice(0,i),...m.slice(i,j+1).reverse(),...m.slice(j+1)];}}}}return{rota:m};};
