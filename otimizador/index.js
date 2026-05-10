@@ -1,43 +1,53 @@
-// otimizador/index.js
-var multiStart = require('./multiStart');
-var twoOpt = require('./twoOpt');
-var { calcularDistanciaTotal, estimarTempoTotal } = require('./utils');
+const multiStart = require('./multiStart');
+const nearestNeighbor = require('./nearestNeighbor');
+const twoOpt = require('./twoOpt');
 
-async function otimizarRotaAvancada(paradas, opcoes) {
+const {
+  calcularDistanciaTotal,
+  estimarTempoTotal,
+} = require('./utils');
+
+async function otimizarRotaAvancada(paradas) {
   if (!paradas || paradas.length < 2) {
-    return { rota: paradas || [], metricas: { distanciaTotal: 0, tempoEstimado: 0 } };
+    return {
+      rota: [],
+      metricas: {},
+    };
   }
 
-  var tentativas = (opcoes && opcoes.tentativas) || 5;
-  var inicio = Date.now();
-  var qtd = paradas.length;
+  const inicio = Date.now();
+  const qtd = paradas.length;
 
-  // Ajusta tentativas ao tamanho
-  if (qtd > 100) tentativas = 2;
-  else if (qtd > 60) tentativas = 3;
+  const tentativas =
+    qtd <= 60 ? 6 :
+    qtd <= 100 ? 4 :
+    2;
 
-  // MultiStart
-  var rota = multiStart(paradas, tentativas);
-  var algoritmo = 'multi-start (' + tentativas + 't)';
+  let rota =
+    qtd >= 4
+      ? multiStart(paradas, tentativas)
+      : nearestNeighbor(paradas);
 
-  // Refino final com 2-Opt
-  if (rota.length >= 4 && rota.length <= 120) {
-    var refino = twoOpt(rota, 3);
-    rota = refino.rota;
-    algoritmo += ' + 2-opt';
+  const distInicial = calcularDistanciaTotal(rota);
+
+  if (qtd >= 4 && qtd <= 120) {
+    rota = twoOpt(rota, 3).rota;
   }
 
-  var distFinal = calcularDistanciaTotal(rota);
-  var tempo = estimarTempoTotal(rota);
+  const distFinal = calcularDistanciaTotal(rota);
 
   return {
-    rota: rota,
+    rota,
     metricas: {
-      distanciaTotal: parseFloat(distFinal.toFixed(2)),
-      tempoEstimado: Math.round(tempo),
-      algoritmo: algoritmo,
+      distanciaInicial: Number(distInicial.toFixed(2)),
+      distanciaTotal: Number(distFinal.toFixed(2)),
+      economia: distInicial
+        ? Number((((distInicial - distFinal) / distInicial) * 100).toFixed(1))
+        : 0,
+      tempoEstimado: Math.round(estimarTempoTotal(rota)),
+      algoritmo: qtd >= 4 ? 'multi-start + 2-opt' : 'nearest-neighbor',
       tempoExecucao: Date.now() - inicio,
-      totalParadas: rota.length,
+      totalParadas: qtd,
     },
   };
 }
