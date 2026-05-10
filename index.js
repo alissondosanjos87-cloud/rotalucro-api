@@ -1,159 +1,136 @@
-const express = require('express');
-const cors = require('cors');
-const app = express();
+console.log('=== RotaLucro v4.0 ===');
+
+var express = require('express');
+var cors = require('cors');
+var multer = require('multer');
+var XLSX = require('xlsx');
+var upload = multer({ storage: multer.memoryStorage() });
+var app = express();
 
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json());
 
-// Cache simples
-const cache = new Map();
-const getCache = (k) => {
-  const v = cache.get(k);
-  if (!v) return null;
-  if (Date.now() > v.exp) { cache.delete(k); return null; }
-  return v.data;
-};
-const setCache = (k, d, ttl = 300) => cache.set(k, { data: d, exp: Date.now() + ttl * 1000 });
+app.get('/', function(req, res) {
+  res.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RotaLucro</title><style>body{margin:0;background:#0F172A;color:#fff;font-family:system-ui;display:grid;place-items:center;min-height:100vh}.c{background:#1E293B;padding:24px;border-radius:20px;width:92%;max-width:400px;text-align:center}h1{font-size:32px;font-weight:800;margin-bottom:4px}h1 span{color:#00C853}input{width:100%;padding:14px;margin:6px 0;border:1px solid #334155;border-radius:12px;background:#0F172A;color:#fff}button{width:100%;padding:14px;border:0;border-radius:12px;background:#00C853;color:#000;font-weight:800;font-size:16px;margin-top:8px;cursor:pointer}.card{background:#0F172A;padding:14px;border-radius:12px;margin:10px 0;border-left:4px solid #00C853;cursor:pointer;text-align:left}.card span{display:block;color:#94A3B8;font-size:12px;margin-top:4px}.h{display:none}#prog{text-align:center;padding:16px}.sp{width:36px;height:36px;border:3px solid #334155;border-top-color:#00C853;border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}@keyframes sp{to{transform:rotate(360deg)}}</style></head><body><div class="c" id="t1"><h1>Rota<span>Lucro</span></h1><p style="color:#94A3B8;margin-bottom:16px">Otimizador de entregas</p><input value="entregador@rotalucro.com" placeholder="Email"><input type="password" value="123456" placeholder="Senha"><button onclick="t1.classList.add(\'h\');t2.classList.remove(\'h\')">ENTRAR</button></div><div class="c h" id="t2"><h3 style="margin-bottom:12px">Como adicionar?</h3><div class="card" onclick="alert(\'📸 Em breve\')">📸 FOTO<span>Em breve</span></div><div class="card" onclick="alert(\'⌨️ Em breve\')">⌨️ DIGITAR<span>Em breve</span></div><input type="file" id="f" accept=".csv,.xlsx,.xls" style="display:none" onchange="go(this.files[0])"><div class="card" onclick="document.getElementById(\'f\').click()">📁 IMPORTAR PLANILHA<span>CSV • Excel • Shopee • Amazon • ML</span></div><div id="prog" class="h"><div class="sp"></div><p style="color:#94A3B8">Processando...</p></div><p id="r" style="color:#94A3B8;margin-top:12px;font-size:13px"></p></div><script>async function go(f){if(!f)return;document.getElementById("prog").classList.remove("h");var d=new FormData();d.append("file",f);var res=await fetch("/api/upload",{method:"POST",body:d});var j=await res.json();document.getElementById("prog").classList.add("h");if(j.error){r.textContent="❌ "+j.error;return}r.innerHTML="✅ <b>"+j.totalParadas+" paradas</b> - "+j.totalKm+"km - Economia "+j.economia+"%<br><small style=\'color:#94A3B8\'>Plataforma: "+j.plataforma.toUpperCase()+" | Lucro: R$ "+j.lucroEstimado+"</small>"}</script></body></html>');
+});
 
-// Haversine
-const toRad = d => d * Math.PI / 180;
-const haversine = (a, b) => {
-  const R = 6371;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const la1 = toRad(a.lat);
-  const la2 = toRad(b.lat);
-  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+app.get('/api/health', function(req, res) {
+  res.json({ ok: true, version: '4.0' });
+});
+
+function toRad(d) { return d * Math.PI / 180; }
+
+function haversine(a, b) {
+  var R = 6371;
+  var dLat = toRad(b.lat - a.lat);
+  var dLng = toRad(b.lng - a.lng);
+  var h = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)*Math.sin(dLng/2);
   return 2 * R * Math.asin(Math.sqrt(h));
-};
+}
 
-// 2-opt
-const twoOpt = (points) => {
-  let route = [...points];
-  let improved = true;
-  const dist = (p1, p2) => haversine(p1, p2);
-  while (improved) {
-    improved = false;
-    for (let i = 1; i < route.length - 2; i++) {
-      for (let j = i + 1; j < route.length - 1; j++) {
-        const a = route[i-1], b = route[i], c = route[j], d = route[j+1];
-        if (dist(a,b) + dist(c,d) > dist(a,c) + dist(b,d)) {
-          route.splice(i, j-i+1,...route.slice(i, j+1).reverse());
-          improved = true;
+function twoOpt(points) {
+  var r = points.slice();
+  var imp = true;
+  while (imp) {
+    imp = false;
+    for (var i = 1; i < r.length - 2; i++) {
+      for (var j = i + 1; j < r.length - 1; j++) {
+        if (haversine(r[i-1],r[i]) + haversine(r[j],r[j+1]) > haversine(r[i-1],r[j]) + haversine(r[i],r[j+1])) {
+          var trecho = r.slice(i, j+1).reverse();
+          r = r.slice(0, i).concat(trecho, r.slice(j+1));
+          imp = true;
         }
       }
     }
   }
-  return route;
-};
+  return r;
+}
 
-// ROTAS API
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), version: '2.1' });
-});
+function detectarTipo(e) {
+  if (!e) return 'casa';
+  var x = e.toLowerCase();
+  if (/condominio|condomínio|residencial|bloco|torre|conjunto|parque/i.test(x)) return 'condominio';
+  if (/apto|apartamento|sala|loja/i.test(x)) return 'apto';
+  return 'casa';
+}
 
-app.post('/api/lucro', (req, res) => {
-  const { valorEntrega = 7, km = 0, tempoMin = 0, custoKm = 0.75, custoHora = 18 } = req.body || {};
-  const custo = km * custoKm + (tempoMin / 60) * custoHora;
-  const lucro = valorEntrega - custo;
-  const margem = valorEntrega? (lucro / valorEntrega * 100) : 0;
-  res.json({
-    valorEntrega, km, tempoMin,
-    custo: +custo.toFixed(2),
-    lucro: +lucro.toFixed(2),
-    margem: +margem.toFixed(1)
-  });
-});
-
-app.post('/api/optimize', (req, res) => {
+app.post('/api/upload', upload.single('file'), function(req, res) {
   try {
-    const { points = [], start } = req.body || {};
-    if (points.length < 2) return res.status(400).json({ error: 'Min 2 pontos' });
-    const key = JSON.stringify({ points, start });
-    const cached = getCache(key);
-    if (cached) return res.json({...cached, cached: true });
-    const startPoint = start || points[0];
-    const rest = points.filter(p => p!== startPoint);
-    const optimized = [startPoint,...twoOpt([startPoint,...rest]).slice(1)];
-    let totalKm = 0;
-    for (let i = 0; i < optimized.length - 1; i++) totalKm += haversine(optimized[i], optimized[i+1]);
-    const result = {
-      order: optimized,
-      totalKm: +totalKm.toFixed(2),
-      totalMin: Math.round(totalKm / 0.35),
-      economia: `${Math.max(5, Math.min(35, Math.round(points.length * 2.3)))}%`
-    };
-    setCache(key, result);
-    res.json(result);
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo' });
+    
+    var fn = req.file.originalname || '';
+    var txt = '';
+    
+    if (fn.endsWith('.xlsx') || fn.endsWith('.xls')) {
+      var wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+      txt = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+    } else {
+      txt = req.file.buffer.toString('utf8');
+    }
+    
+    var pts = processar(txt, fn);
+    if (pts.length < 2) return res.status(400).json({ error: 'Poucos endereços. Min 2.' });
+    
+    var opt = twoOpt(pts);
+    var km = 0;
+    for (var i = 0; i < opt.length - 1; i++) km += haversine(opt[i], opt[i+1]);
+    
+    res.json({
+      success: true,
+      plataforma: pts[0]?.fonte || 'outro',
+      totalParadas: opt.length,
+      totalKm: +km.toFixed(2),
+      totalMin: Math.round(km / 0.35),
+      economia: Math.max(5, Math.min(35, Math.round(opt.length * 2.3))),
+      lucroEstimado: +(opt.length * 12.75).toFixed(2),
+      paradas: opt.map(function(p, i) {
+        return { ordem: i+1, nome: p.nome, lat: p.lat, lng: p.lng, bairro: p.bairro||'', tipo: p.tipo||'casa', fonte: p.fonte||'outro' };
+      })
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-app.get('/api/perfil/:id', (req, res) => {
-  res.json({ id: req.params.id, nome: 'Alisson', plano: 'PRO', entregasHoje: 12, ganhoHoje: 84.5 });
-});
-
-app.post('/api/track', (req, res) => {
-  console.log('TRACK', req.body);
-  res.json({ ok: true });
-});
-
-// FRONTEND
-const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RotaLucro</title>
-<style>
-body{margin:0;background:#0F172A;color:#fff;font-family:system-ui;display:grid;place-items:center;min-height:100vh}
-.c{background:#1E293B;padding:24px;border-radius:20px;width:92%;max-width:400px}
-.l{font-size:32px;font-weight:800;text-align:center;margin-bottom:18px}
-.l span{color:#00C853}
-input{width:100%;padding:14px;margin:6px 0;border:0;border-radius:12px;background:#0F172A;color:#fff;box-sizing:border-box}
-button{width:100%;padding:14px;border:0;border-radius:12px;background:#00C853;font-weight:800;margin-top:8px;color:#000}
-.o{background:#0F172A;padding:16px;border-radius:12px;margin:10px 0;border-left:4px solid #00C853;cursor:pointer}
-.h{display:none}
-</style>
-</head>
-<body>
-<div class="c" id="a">
-  <div class="l">Rota<span>Lucro</span></div>
-  <input value="entregador@rotalucro.com">
-  <input type="password" value="123456">
-  <button onclick="a.classList.add('h');b.classList.remove('h')">ENTRAR</button>
-</div>
-<div class="c h" id="b">
-  <h3>Como adicionar?</h3>
-  <div class="o" onclick="alert('FOTO: tira foto da lista')">📸 FOTO</div>
-  <div class="o" onclick="alert('DIGITAR: digite endereços')">⌨️ DIGITAR</div>
-  <div class="o" onclick="alert('AUDIO: grave os endereços')">🎤 AUDIO</div>
-  <div class="o" onclick="importar()">📁 IMPORTAR ROTAS</div>
-  <p id="s" style="opacity:.8;margin-top:12px"></p>
-</div>
-<script>
-async function importar(){
-  s.textContent = 'Importando e otimizando...';
-  const r = await fetch('/api/optimize', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      points: [
-        {lat:-23.55,lng:-46.63,nome:'Cliente 1'},
-        {lat:-23.56,lng:-46.65,nome:'Cliente 2'},
-        {lat:-23.54,lng:-46.62,nome:'Cliente 3'}
-      ]
-    })
-  });
-  const j = await r.json();
-  s.textContent = '✅ ' + j.order.length + ' paradas - ' + j.totalKm + 'km - Economia ' + j.economia;
+function processar(txt, fn) {
+  var linhas = txt.split(/\r?\n/).filter(function(l) { return l.trim(); });
+  if (linhas.length < 2) return [];
+  
+  var cab = linhas[0].toLowerCase().split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
+  var pf = fn.toLowerCase().includes('amazon') ? 'amazon' : fn.toLowerCase().includes('shopee') ? 'shopee' : fn.toLowerCase().includes('meli')||fn.toLowerCase().includes('mercado') ? 'meli' : 'outro';
+  
+  var cEnd = cab.findIndex(function(h) { return /endereco|address|destino|rua|logradouro/i.test(h); });
+  var cLat = cab.findIndex(function(h) { return h.includes('lat') || h === 'y'; });
+  var cLng = cab.findIndex(function(h) { return h.includes('lng') || h.includes('lon') || h === 'x'; });
+  var cBai = cab.findIndex(function(h) { return h.includes('bairro') || h.includes('district'); });
+  
+  var pts = [];
+  for (var i = 1; i < linhas.length; i++) {
+    var cols = linhas[i].split(',').map(function(c) { return c.trim().replace(/"/g, ''); });
+    if (cols.length < 2) continue;
+    var lat = cLat >= 0 ? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
+    var lng = cLng >= 0 ? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
+    if (isNaN(lat) || isNaN(lng)) continue;
+    var end = cEnd >= 0 ? cols[cEnd] : '';
+    pts.push({ nome: end, lat: lat, lng: lng, bairro: cBai >= 0 ? cols[cBai] : '', tipo: detectarTipo(end), fonte: pf });
+  }
+  return pts;
 }
-</script>
-</body>
-</html>`;
 
-app.get('/', (req, res) => res.send(html));
+app.post('/api/optimize', function(req, res) {
+  try {
+    var points = req.body.points || [];
+    if (points.length < 2) return res.status(400).json({ error: 'Min 2 pontos' });
+    var opt = twoOpt(points);
+    var km = 0;
+    for (var i = 0; i < opt.length - 1; i++) km += haversine(opt[i], opt[i+1]);
+    res.json({ success: true, order: opt, totalKm: +km.toFixed(2), totalMin: Math.round(km/0.35), economia: Math.max(5, Math.min(35, Math.round(points.length * 2.3))) + '%' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log('RotaLucro v2.1 on ' + port));
+var port = process.env.PORT || 3000;
+app.listen(port, function() {
+  console.log('RotaLucro v4.0 on ' + port);
+});
