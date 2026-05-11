@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
-// FRONTEND v3 - LAYOUT NOVO
+// FRONTEND v3 - PIXEL PERFECT
 // ============================================================
 app.get('/', function(req, res) {
   res.send(`<!DOCTYPE html>
@@ -28,7 +28,7 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 #t2{display:none;padding:20px;overflow-y:auto;position:fixed;inset:0;flex-direction:column;background:#0F172A}
 #t3{display:none;position:fixed;inset:0;flex-direction:column;background:#0F172A}
 
-/* TELA LOGIN */
+/* LOGIN */
 .cx{width:100%;max-width:340px;text-align:center}
 .cx h1{font-size:32px;font-weight:800;margin-bottom:4px}
 .cx h1 span{color:#00C853}
@@ -37,7 +37,7 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .bt{width:100%;padding:14px;border:0;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer}
 .btg{background:#00C853;color:#022c12}
 
-/* TELA IMPORTAR */
+/* IMPORTAR */
 .ttl{font-size:22px;font-weight:800;margin-bottom:4px}
 .ttl span{color:#00C853}
 .sub{color:#94A3B8;font-size:13px;margin-bottom:20px}
@@ -46,53 +46,53 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .cd span{display:block;color:#94A3B8;font-size:12px;margin-top:4px}
 .cd.am{border-left-color:#FFD700}
 
-/* TELA MAPA V3 */
+/* MAPA */
 #map{position:absolute;inset:0;z-index:1}
 
-/* HEADER NOVO */
-.header{position:absolute;top:0;left:0;right:0;height:56px;background:#1E293B;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:1000;border-bottom:1px solid rgba(255,255,255,.08)}
-.header.left{display:flex;align-items:center;gap:12px}
-.header.left button{background:none;border:0;color:#fff;font-size:20px;cursor:pointer}
+/* HEADER CORRETO */
+.header{position:absolute;top:0;left:0;right:0;height:56px;background:#1E293B;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:1000;border-bottom:1px solid rgba(255,255,255,.08)}
+.header.left{display:flex;align-items:center;gap:10px}
+.header.left button{background:transparent;border:0;color:#fff;font-size:24px;cursor:pointer;padding:0;width:32px}
 .header.logo{font-size:18px;font-weight:800}
 .header.logo span{color:#00C853}
-.header.logo small{color:#64748B;font-weight:500;margin-left:4px}
+.header.logo small{color:#64748B;font-weight:500;margin-left:4px;font-size:14px}
 .header.add{background:#00C853;color:#022c12;border:0;padding:8px 16px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}
 
-/* MENU LATERAL ESQUERDO */
-.sidebar{position:absolute;left:12px;top:72px;display:flex;flex-direction:column;gap:8px;z-index:1000}
-.sidebar.btn{width:56px;height:56px;border-radius:12px;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;font-weight:700;gap:2px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+/* MENU LATERAL CORRETO */
+.sidebar{position:absolute;left:12px;top:68px;display:flex;flex-direction:column;gap:8px;z-index:1000}
+.sidebar.btn{width:64px;height:64px;border-radius:14px;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;gap:4px;box-shadow:0 4px 12px rgba(0,0,0,.4);line-height:1}
 .sidebar.btn:active{transform:scale(.95)}
-.sidebar.btn svg{width:22px;height:22px}
-.sidebar.red{background:#E11D48;color:#fff}
-.sidebar.blue{background:#2563EB;color:#fff}
-.sidebar.orange{background:#F97316;color:#fff}
-.sidebar.white{background:#F1F5F9;color:#0F172A}
+.sidebar.btn svg{width:24px;height:24px}
+.sidebar.btn.red{background:#E11D48;color:#fff}
+.sidebar.btn.blue{background:#2563EB;color:#fff}
+.sidebar.btn.orange{background:#F97316;color:#fff}
+.sidebar.btn.white{background:#F8FAFC;color:#0F172A}
 
-/* CARD TERMINO ESTIMADO */
-.card-top{position:absolute;top:72px;right:12px;background:#fff;color:#0F172A;padding:12px 16px;border-radius:14px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.3);text-align:center}
-.card-top.label{font-size:10px;color:#64748B;font-weight:600;text-transform:uppercase}
-.card-top.hora{font-size:32px;font-weight:800;line-height:1;margin:4px 0}
+/* CARD TERMINO */
+.card-top{position:absolute;top:68px;right:12px;background:#fff;color:#0F172A;padding:14px 18px;border-radius:16px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.3);text-align:center;min-width:140px}
+.card-top.label{font-size:10px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.card-top.hora{font-size:36px;font-weight:800;line-height:1;margin:6px 0}
 .card-top.info{font-size:11px;color:#64748B;font-weight:600}
 
-/* PINO CIRCULAR NOVO */
-.pin-circle{width:36px;height:36px;border-radius:50%;background:#2563EB;border:3px solid #fff;display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+/* PINO CIRCULAR */
+.pin-circle{width:38px;height:38px;border-radius:50%;background:#2563EB;border:3px solid #fff;display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;box-shadow:0 3px 12px rgba(0,0,0,.5)}
 .pin-circle.red{background:#E11D48}
 .pin-circle.orange{background:#F97316}
 
-/* BOTTOM SHEET NOVO */
+/* BOTTOM SHEET CORRETO */
 .bottom{position:absolute;bottom:0;left:0;right:0;background:#1E293B;border-radius:24px 24px 0 0;padding:16px;z-index:1000;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
-.bottom.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
-.bottom.stats.box{background:#0F172A;padding:12px;border-radius:12px;text-align:center}
-.bottom.stats.box.label{font-size:10px;color:#94A3B8;font-weight:600;text-transform:uppercase}
-.bottom.stats.box.valor{font-size:20px;font-weight:800;margin-top:4px}
-.bottom.msg{font-size:11px;color:#94A3B8;text-align:center;margin-bottom:12px}
+.bottom.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.bottom.stats.box{background:#0F172A;padding:14px;border-radius:14px;text-align:center}
+.bottom.stats.box.label{font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.bottom.stats.box.valor{font-size:22px;font-weight:800;margin-top:4px}
+.bottom.msg{font-size:11px;color:#94A3B8;text-align:center;margin-bottom:12px;padding:0 8px}
 .bottom.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.bottom.actions button{height:48px;border:0;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.bottom.actions button{height:50px;border:0;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .bottom.actions.restaurar{background:#334155;color:#fff}
 .bottom.actions.excluir{background:#E11D48;color:#fff}
 
 /* TOAST */
-.toast{position:fixed;bottom:180px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:13px;z-index:3000;opacity:0;transition:.3s}
+.toast{position:fixed;bottom:200px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:13px;z-index:3000;opacity:0;transition:.3s}
 .toast.show{opacity:1}
 #prog{display:none;text-align:center;padding:20px}
 .sp{width:36px;height:36px;border:3px solid #334155;border-top-color:#00C853;border-radius:50%;animation:sp.8s linear infinite;margin:0 auto 12px}
@@ -141,27 +141,27 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
   <!-- MENU LATERAL -->
   <div class="sidebar">
     <button class="btn red" onclick="toast('Menu')">
-      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
       MENU
     </button>
     <button class="btn blue" onclick="centralizarGPS()">
-      <svg fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3"/></svg>
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
       GPS
     </button>
     <button class="btn blue" onclick="toast('Modo Carro')">
-      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M8 7h8l-1 5H9zM6 9H5l-1 3h2zM14 14a2 2 0 100-4 2 2 0 000 4zM8 14a2 2 0 100-4 2 2 0 000 4z"/></svg>
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0.55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0.55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
       MODO<br>CARRO
     </button>
     <button class="btn orange" onclick="reorganizar()">
-      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M5 3l4 4H7v6h2l-4 4-4-4h2V7H3zM15 17l-4-4h2V7h-2l4-4 4 4h-2v6h2z"/></svg>
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
       REORG.
     </button>
     <button class="btn blue" onclick="verTudo()">
-      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3zM11 11h6v6h-6z"/></svg>
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>
       VER<br>TUDO
     </button>
     <button class="btn white" onclick="otimizar()">
-      <svg fill="#0F172A" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+      <svg fill="#0F172A" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
       OTIMIZAR
     </button>
   </div>
@@ -188,14 +188,15 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
         <div class="label">LUCRO</div>
         <div class="valor" id="sl">R$ 0</div>
       </div>
+    </div>
     <div class="msg" id="msgBottom">Importe uma planilha para começar</div>
     <div class="actions">
       <button class="restaurar" onclick="toast('Restaurar')">
-        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M4 10a6 6 0 0112 0v1H4v-1zM4 12h12v2H4z"/></svg>
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         Restaurar
       </button>
       <button class="excluir" onclick="excluir()">
-        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M6 2l2-2h4l2 2h4v2H2V2zM3 6h14l-1 12H4z"/></svg>
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
         Excluir
       </button>
     </div>
@@ -259,13 +260,12 @@ function initMap(data){
     var lat=p.lat,lng=p.lng;
     pts.push([lat,lng]);
 
-    // PINO CIRCULAR NOVO
     var cor = i===0? 'red' : i===1? 'red' : 'blue';
     var icon=L.divIcon({
       className:"",
       html:'<div class="pin-circle '+cor+'">'+(i+1)+'</div>',
-      iconSize:[36,36],
-      iconAnchor:[18,18]
+      iconSize:[38,38],
+      iconAnchor:[19,19]
     });
 
     var m=L.marker([lat,lng],{icon:icon}).addTo(map);
@@ -278,15 +278,13 @@ function initMap(data){
   }
   if(pts.length)map.fitBounds(L.latLngBounds(pts).pad(0.2));
 
-  // ATUALIZA CARDS
   document.getElementById("sp").textContent=paradas.length+"/"+paradas.length;
   document.getElementById("sd").textContent=(data.totalKm||0).toFixed(1)+" km";
   document.getElementById("sl").textContent="R$ "+(data.lucroEstimado||0).toFixed(2);
   document.getElementById("infoTopo").textContent=paradas.length+" PARADAS • "+(data.totalKm||0).toFixed(1)+" KM";
 
-  // CALCULA HORA FIM
   var agora = new Date();
-  var minTotal = Math.round((data.totalKm||0) / 0.35); // 21km/h
+  var minTotal = Math.round((data.totalKm||0) / 0.35);
   agora.setMinutes(agora.getMinutes() + minTotal);
   var h = String(agora.getHours()).padStart(2,'0');
   var m = String(agora.getMinutes()).padStart(2,'0');
@@ -324,7 +322,7 @@ function excluir(){
 });
 
 // ============================================================
-// API
+// API - MESMA DE ANTES
 // ============================================================
 
 function toRad(d) { return d * Math.PI / 180; }
@@ -476,17 +474,17 @@ function processar(txt, fn) {
     var cols = dados[i];
     if (cols.length < 2) continue;
 
-    var lat = cLat >= 0? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
-    var lng = cLng >= 0? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
+    var lat = cLat >= 0? parseFloat(String(cols).replace(',', '.')) : NaN;
+    var lng = cLng >= 0? parseFloat(String(cols).replace(',', '.')) : NaN;
 
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
 
-    var end = cEnd >= 0? cols[cEnd] : `Parada ${i}`;
+    var end = cEnd >= 0? cols : `Parada ${i}`;
     pts.push({
       nome: end,
       lat: lat,
       lng: lng,
-      bairro: cBai >= 0? cols[cBai] : '',
+      bairro: cBai >= 0? cols : '',
       tipo: detectarTipo(end),
       fonte: pf
     });
@@ -495,10 +493,10 @@ function processar(txt, fn) {
 }
 
 app.get('/api/health', function(req, res) {
-  res.json({ ok: true, version: '5.4', timestamp: new Date().toISOString() });
+  res.json({ ok: true, version: '5.5', timestamp: new Date().toISOString() });
 });
 
 var port = process.env.PORT || 3000;
 app.listen(port, function() {
-  console.log('RotaLucro v5.4 on ' + port);
+  console.log('RotaLucro v5.5 on ' + port);
 });
