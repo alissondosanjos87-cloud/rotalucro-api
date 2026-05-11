@@ -1,58 +1,96 @@
 // otimizador/index.js
-const multiStart = require('./multiStart');
-const twoOpt = require('./twoOpt');
-const nearestNeighbor = require('./nearestNeighbor');
-const { calcularDistanciaTotal, estimarTempoTotal } = require('./utils');
-const cacheDist = require('./cache');
+// Orquestrador - escolhe o melhor algoritmo baseado no tamanho da rota
 
-async function otimizarRotaAvancada(paradas, options = {}) {
+var nearestNeighbor = require('./nearestNeighbor');
+var twoOpt = require('./twoOpt');
+var { calcularDistanciaTotal, estimarTempoTotal } = require('./utils');
+var logger = require('../services/logger');
+
+/**
+ * Otimização adaptativa
+ * Rotas pequenas: multi-start + 2-opt
+ * Rotas médias: nearest neighbor + 2-opt
+ * Rotas grandes: só nearest neighbor
+ */
+async function otimizarRotaAvancada(paradas, options) {
   if (!paradas || paradas.length < 2) {
     return {
       rota: paradas || [],
-      metricas: { distanciaTotal: 0, tempoEstimado: 0, algoritmo: 'sem-otimizacao', totalParadas: 0 },
+      metricas: {
+        distanciaTotal: 0,
+        tempoEstimado: 0,
+        algoritmo: 'sem-otimizacao',
+        totalParadas: 0
+      }
     };
   }
 
-  const inicio = Date.now();
-  const qtd = paradas.length;
+  var qtd = paradas.length;
+  var inicio = Date.now();
 
-  const tentativas = qtd <= 60 ? 6 : qtd <= 100 ? 4 : qtd <= 150 ? 2 : 1;
-  const refinoFinal = qtd <= 100;
-  const usarMultiStart = qtd >= 4;
+  // Define estratégia baseado no tamanho
+  var tentativas, usar2Opt, algoritmo;
 
-  let rota, algoritmo = 'nearest-neighbor';
-
-  if (usarMultiStart) {
-    rota = multiStart(paradas, tentativas);
-    algoritmo = 'multi-start (' + tentativas + 't)';
+  if (qtd <= 60) {
+    tentativas = 5;
+    usar2Opt = true;
+    algoritmo = 'multi-start + 2-opt';
+  } else if (qtd <= 100) {
+    tentativas = 3;
+    usar2Opt = true;
+    algoritmo = 'nearest-neighbor + 2-opt';
   } else {
-    rota = nearestNeighbor(paradas, 0);
+    tentativas = 1;
+    usar2Opt = false;
+    algoritmo = 'nearest-neighbor';
   }
 
-  const distAposMS = calcularDistanciaTotal(rota);
+  logger.info('Estratégia escolhida', {
+    paradas: qtd,
+    algoritmo: algoritmo,
+    tentativas: tentativas
+  });
 
-  if (refinoFinal && rota.length >= 4 && rota.length <= 120) {
-    const refino = twoOpt(rota, 3);
-    rota = refino.rota;
-    algoritmo += ' + 2-opt';
+  var melhorRota = null;
+  var melhorDist = Infinity;
+
+  // Executa múltiplas tentativas com pontos de partida diferentes
+  for (var t = 0; t < tentativas; t++) {
+    var startIndex = t === 0 ? 0 : Math.floor(Math.random() * qtd);
+    var rota = nearestNeighbor(paradas, startIndex);
+
+    if (usar2Opt && rota.length >= 4) {
+      var refino = twoOpt(rota, 2);
+      rota = refino.rota;
+    }
+
+    var dist = calcularDistanciaTotal(rota);
+    if (dist < melhorDist) {
+      melhorDist = dist;
+      melhorRota = rota;
+    }
   }
 
-  const distFinal = calcularDistanciaTotal(rota);
-  const tempo = estimarTempoTotal(rota);
-  const economia = distAposMS > 0 ? ((distAposMS - distFinal) / distAposMS * 100) : 0;
+  // Refino final para rotas pequenas
+  if (usar2Opt && melhorRota.length >= 4 && melhorRota.length <= 80) {
+    var refinoFinal = twoOpt(melhorRota, 3);
+    melhorRota = refinoFinal.rota;
+    melhorDist = calcularDistanciaTotal(melhorRota);
+  }
+
+  var tempoEstimado = estimarTempoTotal(melhorRota);
+  var tempoMs = Date.now() - inicio;
 
   return {
-    rota,
+    rota: melhorRota,
     metricas: {
-      distanciaTotal: parseFloat(distFinal.toFixed(2)),
-      tempoEstimado: Math.round(tempo),
-      economia: parseFloat(economia.toFixed(1)),
-      algoritmo,
-      tempoExecucao: Date.now() - inicio,
-      totalParadas: rota.length,
-      adaptativo: { tentativas, refinoFinal, usarMultiStart, tamanhoRota: qtd },
-      cacheDistancia: cacheDist.getStats(),
-    },
+      distanciaTotal: parseFloat(melhorDist.toFixed(2)),
+      tempoEstimado: Math.round(tempoEstimado),
+      economia: 0,
+      algoritmo: algoritmo,
+      tempoExecucao: tempoMs,
+      totalParadas: melhorRota.length
+    }
   };
 }
 
