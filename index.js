@@ -47,14 +47,11 @@ function twoOpt(p) {
 function detectarTipo(endereco) {
   if (!endereco) return 'casa';
   var e = endereco.toLowerCase();
-  // Condomínio
-  if (/condominio|condomínio|residencial|bloco\s*\d|torre\s*\d|conjunto|parque|cdhu|predio|prédio|portaria|ap\s*\d|apto\s*\d|apartamento\s*\d/i.test(e)) {
+  if (/condominio|condomínio|residencial|bloco\s*\d|torre\s*\d|conjunto|parque|cdhu|predio|prédio|portaria/i.test(e)) {
     if (/ap\s*\d|apto\s*\d|apartamento|bloco\s*\d|torre\s*\d/i.test(e)) return 'apto';
     return 'condominio';
   }
-  // Apartamento
   if (/apto|apartamento|ap\s*\d|andar|sala\s*\d|loja\s*\d|conj\s*\d/i.test(e)) return 'apto';
-  // Casa
   if (/casa|sobrado|viela|beco|fundo/i.test(e)) return 'casa';
   return 'casa';
 }
@@ -80,15 +77,12 @@ function agruparProximos(paradas, raioKm) {
     grupos.push(grupo);
   }
   
-  // Para cada grupo, cria uma parada combinada
   return grupos.map(function(g) {
     if (g.length === 1) return g[0];
-    // Média das coordenadas
     var lat = 0, lng = 0;
     g.forEach(function(p) { lat += p.lat; lng += p.lng; });
     lat /= g.length; lng /= g.length;
     
-    // Junta informações
     var nomes = g.map(function(p) { return p.nome; });
     var tipos = g.map(function(p) { return p.tipo; });
     var tipoFinal = tipos.includes('condominio') ? 'condominio' : tipos.includes('apto') ? 'apto' : 'casa';
@@ -125,25 +119,19 @@ app.post('/api/upload', upload.single('file'), function(req, res) {
     
     if (pts.length < 2) return res.status(400).json({ error: 'Poucos endereços válidos. Encontrados: ' + pts.length + '. Verifique as colunas Latitude/Longitude.' });
     
-    // Agrupa paradas muito próximas (mesmo prédio/condomínio)
-    var ptsAgrupados = agruparProximos(pts, 0.03); // 30 metros
+    var ptsAgrupados = agruparProximos(pts, 0.03);
     console.log('Paradas após agrupamento: ' + ptsAgrupados.length);
     
-    // Otimiza rota
     var opt = twoOpt(ptsAgrupados);
     
-    // Calcula distância REAL
     var km = 0;
     for (var i = 0; i < opt.length - 1; i++) {
       km += haversine(opt[i], opt[i + 1]);
     }
     
-    // Estatísticas
     var totalOriginal = pts.length;
     var totalAgrupado = ptsAgrupados.length;
     var economia = totalOriginal > 0 ? Math.round((1 - totalAgrupado / totalOriginal) * 100) : 0;
-    
-    // Lucro estimado (R$ 12,75 por parada original)
     var lucroEstimado = totalOriginal * 12.75;
     
     var resultado = {
@@ -152,7 +140,7 @@ app.post('/api/upload', upload.single('file'), function(req, res) {
       totalOriginal: totalOriginal,
       agrupadas: totalOriginal - totalAgrupado,
       totalKm: +km.toFixed(2),
-      totalMin: Math.round(km / 0.35), // ~21 km/h em cidade
+      totalMin: Math.round(km / 0.35),
       economia: economia,
       lucroEstimado: +lucroEstimado.toFixed(2),
       paradas: opt.map(function(p, i) {
@@ -181,63 +169,57 @@ function processarPlanilha(txt) {
   if (linhas.length < 2) return [];
   
   var cab = linhas[0].split(',').map(function(h) { return h.trim().replace(/"/g, '').toLowerCase(); });
+  console.log('CABECALHO:', JSON.stringify(cab));
   
-  // Encontra colunas
-  var cEnd = cab.findIndex(function(h) { 
-    return h.includes('destination') || h.includes('address') || h.includes('endereco') || 
-           h.includes('destino') || h.includes('rua') || h.includes('logradouro'); 
-  });
-  var cLat = cab.findIndex(function(h) { return h.includes('latitude') || h === 'lat' || h === 'y'; });
-  var cLng = cab.findIndex(function(h) { return h.includes('longitude') || h === 'lng' || h === 'lon' || h === 'x'; });
-  var cBai = cab.findIndex(function(h) { return h.includes('bairro') || h.includes('district'); });
-  var cCid = cab.findIndex(function(h) { return h.includes('city') || h.includes('cidade'); });
+  var cEnd = -1, cLat = -1, cLng = -1, cBai = -1;
   
-  console.log('Colunas encontradas: End=' + cEnd + ' Lat=' + cLat + ' Lng=' + cLng + ' Bairro=' + cBai);
+  for (var i = 0; i < cab.length; i++) {
+    var h = cab[i];
+    if (cEnd === -1 && (h.includes('address') || h.includes('endereco') || h.includes('destino') || h.includes('rua') || h.includes('logradouro') || h.includes('destination'))) cEnd = i;
+    if (cLat === -1 && (h.includes('latitude') || h === 'lat' || h === 'y')) cLat = i;
+    if (cLng === -1 && (h.includes('longitude') || h === 'lng' || h === 'lon' || h === 'x')) cLng = i;
+    if (cBai === -1 && (h.includes('bairro') || h.includes('district'))) cBai = i;
+  }
+  
+  // Fallback: colunas I e J (índices 8 e 9) para Latitude/Longitude
+  if (cLat === -1 && cab.length >= 9) cLat = 8;
+  if (cLng === -1 && cab.length >= 10) cLng = 9;
+  if (cEnd === -1 && cab.length >= 5) cEnd = 4;
+  
+  console.log('INDICES FINAL: End=' + cEnd + ' Lat=' + cLat + ' Lng=' + cLng);
   
   var pts = [];
   for (var i = 1; i < linhas.length; i++) {
-    // Parse CSV respeitando aspas
-    var cols = [];
-    var current = '', inQuotes = false;
-    for (var j = 0; j < linhas[i].length; j++) {
-      var ch = linhas[i][j];
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = ''; }
-      else { current += ch; }
-    }
-    cols.push(current.trim());
-    
+    var cols = linhas[i].split(',').map(function(c) { return c.trim().replace(/"/g, ''); });
     if (cols.length < 3) continue;
     
-    var lat = cLat >= 0 ? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
-    var lng = cLng >= 0 ? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
+    var lat = cLat >= 0 && cols[cLat] ? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
+    var lng = cLng >= 0 && cols[cLng] ? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
     
-    // Valida coordenadas (Brasil)
     if (isNaN(lat) || isNaN(lng)) continue;
-    if (lat < -35 || lat > 5 || lng < -75 || lng < -30) continue; // Fora do Brasil
+    if (lat === 0 && lng === 0) continue;
     
-    var end = cEnd >= 0 ? cols[cEnd] : ('Parada ' + (i + 1));
-    var bairro = cBai >= 0 ? cols[cBai] : '';
-    var cidade = cCid >= 0 ? cols[cCid] : '';
+    var end = cEnd >= 0 && cols[cEnd] ? cols[cEnd] : ('Parada ' + i);
+    var bairro = cBai >= 0 && cols[cBai] ? cols[cBai] : '';
     
     pts.push({
       nome: end,
       lat: lat,
       lng: lng,
       bairro: bairro,
-      cidade: cidade,
       tipo: detectarTipo(end + ' ' + bairro)
     });
   }
   
+  console.log('TOTAL PARADAS EXTRAÍDAS: ' + pts.length);
   return pts;
 }
 
 app.get('/api/health', function(req, res) {
-  res.json({ ok: true, version: '4.1' });
+  res.json({ ok: true, version: '4.2' });
 });
 
 var port = process.env.PORT || 3000;
 app.listen(port, function() {
-  console.log('RotaLucro Pro v4.1 on ' + port);
+  console.log('RotaLucro Pro v4.2 on ' + port);
 });
