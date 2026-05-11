@@ -1,0 +1,32 @@
+# Dependências
+node_modules/
+package-lock.json
+
+# Ambiente
+.env
+.env.local
+.env.production
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Uploads
+uploads/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# Testes
+coverage/
+.nyc_output/
+
+# Build
+dist/
+build/
