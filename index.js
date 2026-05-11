@@ -1,17 +1,46 @@
-console.log('=== RotaLucro v5.0 ===');
+// index.js - RotaLucro API v4.0
+require('dotenv').config();
 
-var express = require('express');
-var cors = require('cors');
-var multer = require('multer');
-var XLSX = require('xlsx');
-var upload = multer({ storage: multer.memoryStorage() });
-var app = express();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const { supabase, logSeguro, sanitizarErro } = require('./config/supabase');
+const { getWorkerPool } = require('./services/workerPool');
+const routeCache = require('./services/cache');
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middlewares
+app.use(helmet());
 app.use(cors());
-app.use(express.json({ limit: '5mb' }));
+app.use(morgan('short'));
+app.use(express.json({ limit: '2mb' }));
+
+// Rate limiting
+const optimizeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Muitas otimizações. Aguarde um minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Muitas requisições.' },
+});
+
+app.use('/api/optimize', optimizeLimiter);
+app.use('/api', generalLimiter);
+
+app.set('supabase', supabase);
 
 // ============================================================
-// FRONTEND COMPLETO
+// FRONTEND
 // ============================================================
 app.get('/', function(req, res) {
   res.send(`<!DOCTYPE html>
@@ -19,7 +48,7 @@ app.get('/', function(req, res) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>RotaLucro v5</title>
+<title>RotaLucro v4</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -183,7 +212,7 @@ async function importarArquivo(file) {
   document.getElementById('fileInfo').textContent = '📄 ' + file.name;
   var fd = new FormData(); fd.append('file', file);
   try {
-    var r = await fetch('/api/upload', { method: 'POST', body: fd });
+    var r = await fetch('/api/optimize/upload', { method: 'POST', body: fd });
     var data = await r.json();
     document.getElementById('prog').style.display = 'none';
     if (data.error) { document.getElementById('fileInfo').textContent = '❌ ' + data.error; return; }
@@ -212,7 +241,7 @@ function initMap(data) {
   if (map) { map.remove(); map = null; }
   allMarkers = [];
   map = L.map('map', { zoomControl: false }).setView([-23.55, -46.63], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
   var pts = [];
   var paradas = data.paradas || data.order || [];
   paradas.forEach(function(p, i) {
@@ -247,99 +276,71 @@ function iniciar() {
 });
 
 // ============================================================
-// API
+// HEALTH CHECK
 // ============================================================
-
 app.get('/api/health', function(req, res) {
-  res.json({ ok: true, version: '5.0' });
+  res.json({ ok: true, version: '4.0', timestamp: new Date().toISOString() });
 });
 
-function toRad(d) { return d * Math.PI / 180; }
-function haversine(a, b) {
-  var R = 6371;
-  var dLat = toRad(b.lat - a.lat);
-  var dLng = toRad(b.lng - a.lng);
-  var h = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)*Math.sin(dLng/2);
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-function twoOpt(points) {
-  var r = points.slice(), imp = true;
-  while (imp) {
-    imp = false;
-    for (var i = 1; i < r.length - 2; i++) {
-      for (var j = i + 1; j < r.length - 1; j++) {
-        if (haversine(r[i-1],r[i]) + haversine(r[j],r[j+1]) > haversine(r[i-1],r[j]) + haversine(r[i],r[j+1])) {
-          var t = r.slice(i, j+1).reverse();
-          r = r.slice(0, i).concat(t, r.slice(j+1));
-          imp = true;
-        }
-      }
-    }
-  }
-  return r;
-}
-function detectarTipo(e) {
-  if (!e) return 'casa';
-  var x = e.toLowerCase();
-  if (/condominio|condomínio|residencial|bloco|torre|conjunto|parque/i.test(x)) return 'condominio';
-  if (/apto|apartamento|sala|loja/i.test(x)) return 'apto';
-  return 'casa';
-}
-
-app.post('/api/upload', upload.single('file'), function(req, res) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo' });
-    var fn = req.file.originalname || '', txt = '';
-    if (fn.endsWith('.xlsx') || fn.endsWith('.xls')) {
-      var wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-      txt = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-    } else { txt = req.file.buffer.toString('utf8'); }
-    
-    var pts = processar(txt, fn);
-    if (pts.length < 2) return res.status(400).json({ error: 'Poucos endereços. Encontrados: ' + pts.length });
-    var opt = twoOpt(pts), km = 0;
-    for (var i = 0; i < opt.length - 1; i++) km += haversine(opt[i], opt[i+1]);
-    
-    res.json({
-      success: true,
-      plataforma: pts[0]?.fonte || 'outro',
-      totalParadas: opt.length,
-      totalKm: +km.toFixed(2),
-      totalMin: Math.round(km / 0.35),
-      economia: Math.max(5, Math.min(35, Math.round(opt.length * 2.3))),
-      lucroEstimado: +(opt.length * 12.75).toFixed(2),
-      paradas: opt.map(function(p, i) { return { ordem: i+1, nome: p.nome, lat: p.lat, lng: p.lng, bairro: p.bairro||'', tipo: p.tipo, fonte: p.fonte }; })
-    });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+app.get('/ping', function(req, res) {
+  res.send('pong');
 });
 
-function processar(txt, fn) {
-  var linhas = txt.split(/\r?\n/).filter(function(l) { return l.trim(); });
-  if (linhas.length < 2) return [];
-  
-  var cab = linhas[0].split(',').map(function(h) { return h.trim().replace(/"/g, '').toLowerCase(); });
-  var pf = fn.toLowerCase().includes('amazon') ? 'amazon' : fn.toLowerCase().includes('shopee') ? 'shopee' : fn.toLowerCase().includes('meli')||fn.toLowerCase().includes('mercado') ? 'meli' : 'outro';
-  
-  var cEnd = cab.findIndex(function(h) { return h.includes('destination') || h.includes('address') || h.includes('endereco') || h.includes('destino') || h.includes('rua') || h.includes('logradouro'); });
-  var cLat = cab.findIndex(function(h) { return h.includes('latitude') || h.includes('lat') || h === 'y'; });
-  var cLng = cab.findIndex(function(h) { return h.includes('longitude') || h.includes('lng') || h.includes('lon') || h === 'x'; });
-  var cBai = cab.findIndex(function(h) { return h.includes('bairro') || h.includes('district'); });
-  var cCid = cab.findIndex(function(h) { return h.includes('city') || h.includes('cidade'); });
-  
-  var pts = [];
-  for (var i = 1; i < linhas.length; i++) {
-    var cols = linhas[i].split(',').map(function(c) { return c.trim().replace(/"/g, ''); });
-    if (cols.length < 3) continue;
-    var lat = cLat >= 0 ? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
-    var lng = cLng >= 0 ? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
-    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) continue;
-    var end = cEnd >= 0 ? cols[cEnd] : '';
-    pts.push({ nome: end, lat: lat, lng: lng, bairro: cBai >= 0 ? cols[cBai] : '', cidade: cCid >= 0 ? cols[cCid] : '', tipo: detectarTipo(end), fonte: pf });
-  }
-  return pts;
+// ============================================================
+// ROTAS
+// ============================================================
+app.use('/api/health', require('./routes/health'));
+app.use('/api/optimize', require('./routes/optimize'));
+app.use('/api/track', require('./routes/track'));
+app.use('/api/lucro', require('./routes/lucro'));
+app.use('/api/perfil', require('./routes/perfil'));
+
+// ============================================================
+// 404
+// ============================================================
+app.use(function(req, res) {
+  res.status(404).json({ error: 'Rota não encontrada', path: req.originalUrl });
+});
+
+// ============================================================
+// ERROR HANDLER
+// ============================================================
+app.use(function(err, req, res, next) {
+  logSeguro('error', 'Erro não tratado', { path: req.path, message: err.message });
+  res.status(err.status || 500).json(sanitizarErro(err));
+});
+
+// ============================================================
+// START
+// ============================================================
+const server = app.listen(PORT, function() {
+  console.log('RotaLucro API v4.0 - Porta ' + PORT);
+  console.log('Limite: 150 paradas');
+  console.log('Cache: Memoria');
+  console.log('Custo: R$ 0');
+});
+
+// Graceful shutdown
+async function shutdown(signal) {
+  console.log(signal + ' recebido. Encerrando...');
+  server.close(function() { console.log('HTTP fechado'); });
+  const pool = getWorkerPool();
+  await pool.shutdown();
+  console.log('Shutdown completo');
+  process.exit(0);
 }
 
-var port = process.env.PORT || 3000;
-app.listen(port, function() {
-  console.log('RotaLucro v5.0 on ' + port);
+process.on('SIGTERM', function() { shutdown('SIGTERM'); });
+process.on('SIGINT', function() { shutdown('SIGINT'); });
+
+process.on('uncaughtException', function(err) {
+  logSeguro('error', 'Erro fatal', { message: err.message });
+  console.error(err);
+  process.exit(1);
 });
+
+process.on('unhandledRejection', function(reason) {
+  logSeguro('error', 'Promise rejeitada', { message: reason instanceof Error ? reason.message : String(reason) });
+});
+
+module.exports = app;
