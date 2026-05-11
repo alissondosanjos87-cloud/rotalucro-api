@@ -3,19 +3,12 @@ var cors = require('cors');
 var multer = require('multer');
 var XLSX = require('xlsx');
 
-// Descomente as 4 linhas abaixo se for usar Supabase
-// var { createClient } = require('@supabase/supabase-js');
-// var ws = require('ws');
-// globalThis.WebSocket = ws;
-// var supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-
 var app = express();
-
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
-// FRONTEND
+// FRONTEND v3 - LAYOUT NOVO
 // ============================================================
 app.get('/', function(req, res) {
   res.send(`<!DOCTYPE html>
@@ -29,9 +22,13 @@ app.get('/', function(req, res) {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:100vh}
+
+/* TELAS */
 #t1{display:flex;justify-content:center;align-items:center;padding:24px;position:fixed;inset:0;flex-direction:column;background:radial-gradient(circle at 50% -10%,#1e293b,#0F172A 45%,#020617)}
 #t2{display:none;padding:20px;overflow-y:auto;position:fixed;inset:0;flex-direction:column;background:#0F172A}
-#t3{display:none;position:fixed;inset:0;flex-direction:column;background:#000}
+#t3{display:none;position:fixed;inset:0;flex-direction:column;background:#0F172A}
+
+/* TELA LOGIN */
 .cx{width:100%;max-width:340px;text-align:center}
 .cx h1{font-size:32px;font-weight:800;margin-bottom:4px}
 .cx h1 span{color:#00C853}
@@ -39,6 +36,8 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .cx input{width:100%;padding:14px;margin:6px 0;border:1.5px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;font-size:15px}
 .bt{width:100%;padding:14px;border:0;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer}
 .btg{background:#00C853;color:#022c12}
+
+/* TELA IMPORTAR */
 .ttl{font-size:22px;font-weight:800;margin-bottom:4px}
 .ttl span{color:#00C853}
 .sub{color:#94A3B8;font-size:13px;margin-bottom:20px}
@@ -46,27 +45,54 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 .cd:active{transform:scale(.98)}
 .cd span{display:block;color:#94A3B8;font-size:12px;margin-top:4px}
 .cd.am{border-left-color:#FFD700}
-#map{flex:1;z-index:1}
-.tb{position:absolute;top:12px;left:12px;right:12px;height:48px;background:rgba(15,23,42,.94);backdrop-filter:blur(14px);border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:1000;border:1px solid rgba(255,255,255,.08)}
-.tb button{width:34px;height:34px;border-radius:10px;border:0;background:rgba(255,255,255,.06);color:#fff;font-size:16px;cursor:pointer}
-.tb.ti{text-align:center;font-weight:700;font-size:14px}
-.tb.ti small{display:block;color:#94A3B8;font-size:11px}
-.ft{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:1000}
-.fd{width:36px;height:36px;border-radius:50%;border:3px solid #fff;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
-.fd:active{transform:scale(.9)}
-.fd.vd{background:#00C853}.fd.az{background:#0057FF}.fd.vm{background:#E10600}.fd.lr{background:#FF6D00}
-.fd.at{border-color:#FFD700}
-.st{position:absolute;bottom:0;left:0;right:0;background:#0F172A;border-radius:24px 24px 0 0;padding:14px 18px 18px;box-shadow:0 -8px 32px rgba(0,0,0,.5);z-index:1000;border-top:1px solid rgba(255,255,255,.08)}
-.st.ha{width:36px;height:4px;background:#334155;border-radius:2px;margin:0 auto 12px}
-.st.rs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
-.st.rs div span{font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600}
-.st.rs div strong{display:block;font-size:20px;font-weight:800;margin-top:2px}
-.st.rs.vr strong{color:#00C853}
-.btn-iniciar{width:100%;height:50px;background:#00C853;color:#022c12;font-weight:800;font-size:15px;border:0;border-radius:14px;cursor:pointer}
-.pin{width:34px;height:42px;position:relative;display:grid;place-items:center;font-weight:800;color:#fff;font-size:13px}
-.pin::before{content:"";position:absolute;width:34px;height:34px;background:currentColor;border-radius:50% 50% 50% 0;transform:rotate(-45deg);top:0;left:0;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.4)}
-.pin span{position:relative;z-index:1}
-.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:13px;z-index:3000;opacity:0;transition:.3s}
+
+/* TELA MAPA V3 */
+#map{position:absolute;inset:0;z-index:1}
+
+/* HEADER NOVO */
+.header{position:absolute;top:0;left:0;right:0;height:56px;background:#1E293B;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:1000;border-bottom:1px solid rgba(255,255,255,.08)}
+.header.left{display:flex;align-items:center;gap:12px}
+.header.left button{background:none;border:0;color:#fff;font-size:20px;cursor:pointer}
+.header.logo{font-size:18px;font-weight:800}
+.header.logo span{color:#00C853}
+.header.logo small{color:#64748B;font-weight:500;margin-left:4px}
+.header.add{background:#00C853;color:#022c12;border:0;padding:8px 16px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}
+
+/* MENU LATERAL ESQUERDO */
+.sidebar{position:absolute;left:12px;top:72px;display:flex;flex-direction:column;gap:8px;z-index:1000}
+.sidebar.btn{width:56px;height:56px;border-radius:12px;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;font-weight:700;gap:2px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.sidebar.btn:active{transform:scale(.95)}
+.sidebar.btn svg{width:22px;height:22px}
+.sidebar.red{background:#E11D48;color:#fff}
+.sidebar.blue{background:#2563EB;color:#fff}
+.sidebar.orange{background:#F97316;color:#fff}
+.sidebar.white{background:#F1F5F9;color:#0F172A}
+
+/* CARD TERMINO ESTIMADO */
+.card-top{position:absolute;top:72px;right:12px;background:#fff;color:#0F172A;padding:12px 16px;border-radius:14px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.3);text-align:center}
+.card-top.label{font-size:10px;color:#64748B;font-weight:600;text-transform:uppercase}
+.card-top.hora{font-size:32px;font-weight:800;line-height:1;margin:4px 0}
+.card-top.info{font-size:11px;color:#64748B;font-weight:600}
+
+/* PINO CIRCULAR NOVO */
+.pin-circle{width:36px;height:36px;border-radius:50%;background:#2563EB;border:3px solid #fff;display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.pin-circle.red{background:#E11D48}
+.pin-circle.orange{background:#F97316}
+
+/* BOTTOM SHEET NOVO */
+.bottom{position:absolute;bottom:0;left:0;right:0;background:#1E293B;border-radius:24px 24px 0 0;padding:16px;z-index:1000;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
+.bottom.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.bottom.stats.box{background:#0F172A;padding:12px;border-radius:12px;text-align:center}
+.bottom.stats.box.label{font-size:10px;color:#94A3B8;font-weight:600;text-transform:uppercase}
+.bottom.stats.box.valor{font-size:20px;font-weight:800;margin-top:4px}
+.bottom.msg{font-size:11px;color:#94A3B8;text-align:center;margin-bottom:12px}
+.bottom.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bottom.actions button{height:48px;border:0;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.bottom.actions.restaurar{background:#334155;color:#fff}
+.bottom.actions.excluir{background:#E11D48;color:#fff}
+
+/* TOAST */
+.toast{position:fixed;bottom:180px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:13px;z-index:3000;opacity:0;transition:.3s}
 .toast.show{opacity:1}
 #prog{display:none;text-align:center;padding:20px}
 .sp{width:36px;height:36px;border:3px solid #334155;border-top-color:#00C853;border-radius:50%;animation:sp.8s linear infinite;margin:0 auto 12px}
@@ -75,6 +101,7 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
 </head>
 <body>
 
+<!-- TELA 1: LOGIN -->
 <div id="t1">
   <div class="cx">
     <h1>Rota<span>Lucro</span></h1>
@@ -85,6 +112,7 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
   </div>
 </div>
 
+<!-- TELA 2: IMPORTAR -->
 <div id="t2">
   <div class="ttl">Rota<span>Lucro</span></div>
   <p class="sub">Como quer adicionar sua rota hoje?</p>
@@ -97,28 +125,82 @@ body{font-family:system-ui;background:#0F172A;color:#fff;overflow:hidden;height:
   <p id="fileInfo" style="font-size:12px;color:#94A3B8;text-align:center;margin-top:8px"></p>
 </div>
 
+<!-- TELA 3: MAPA V3 -->
 <div id="t3">
   <div id="map"></div>
-  <div class="tb">
-    <button onclick="irPara('t2')">←</button>
-    <div class="ti">Rota Otimizada<small id="routeInfo">0 paradas</small></div>
-    <button>⋮</button>
-  </div>
-  <div class="ft">
-    <div class="fd vd at" data-type="all" onclick="filtrar('all',this)"></div>
-    <div class="fd az" data-type="amazon" onclick="filtrar('amazon',this)"></div>
-    <div class="fd vm" data-type="shopee" onclick="filtrar('shopee',this)"></div>
-    <div class="fd lr" data-type="meli" onclick="filtrar('meli',this)"></div>
-  </div>
-  <div class="st">
-    <div class="ha"></div>
-    <div class="rs">
-      <div><span>Paradas</span><strong id="sp">0</strong></div>
-      <div><span>Distância</span><strong id="sd">0 km</strong></div>
-      <div class="vr"><span>Lucro</span><strong id="sl">R$ 0</strong></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="left">
+      <button onclick="irPara('t2')">←</button>
+      <div class="logo">Rota<span>Lucro</span><small>v3</small></div>
     </div>
-    <button class="btn-iniciar" onclick="iniciar()">▶ INICIAR ROTA</button>
+    <button class="add" onclick="toast('Em breve')">+ Parada</button>
   </div>
+
+  <!-- MENU LATERAL -->
+  <div class="sidebar">
+    <button class="btn red" onclick="toast('Menu')">
+      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+      MENU
+    </button>
+    <button class="btn blue" onclick="centralizarGPS()">
+      <svg fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3"/></svg>
+      GPS
+    </button>
+    <button class="btn blue" onclick="toast('Modo Carro')">
+      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M8 7h8l-1 5H9zM6 9H5l-1 3h2zM14 14a2 2 0 100-4 2 2 0 000 4zM8 14a2 2 0 100-4 2 2 0 000 4z"/></svg>
+      MODO<br>CARRO
+    </button>
+    <button class="btn orange" onclick="reorganizar()">
+      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M5 3l4 4H7v6h2l-4 4-4-4h2V7H3zM15 17l-4-4h2V7h-2l4-4 4 4h-2v6h2z"/></svg>
+      REORG.
+    </button>
+    <button class="btn blue" onclick="verTudo()">
+      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3zM11 11h6v6h-6z"/></svg>
+      VER<br>TUDO
+    </button>
+    <button class="btn white" onclick="otimizar()">
+      <svg fill="#0F172A" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+      OTIMIZAR
+    </button>
+  </div>
+
+  <!-- CARD TERMINO -->
+  <div class="card-top">
+    <div class="label">TÉRMINO ESTIMADO</div>
+    <div class="hora" id="horaFim">--:--</div>
+    <div class="info" id="infoTopo">0 PARADAS • 0 KM</div>
+  </div>
+
+  <!-- BOTTOM SHEET -->
+  <div class="bottom">
+    <div class="stats">
+      <div class="box">
+        <div class="label">PARADAS</div>
+        <div class="valor" id="sp">0/0</div>
+      </div>
+      <div class="box">
+        <div class="label">DISTÂNCIA</div>
+        <div class="valor" id="sd">0 km</div>
+      </div>
+      <div class="box">
+        <div class="label">LUCRO</div>
+        <div class="valor" id="sl">R$ 0</div>
+      </div>
+    <div class="msg" id="msgBottom">Importe uma planilha para começar</div>
+    <div class="actions">
+      <button class="restaurar" onclick="toast('Restaurar')">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M4 10a6 6 0 0112 0v1H4v-1zM4 12h12v2H4z"/></svg>
+        Restaurar
+      </button>
+      <button class="excluir" onclick="excluir()">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M6 2l2-2h4l2 2h4v2H2V2zM3 6h14l-1 12H4z"/></svg>
+        Excluir
+      </button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -157,7 +239,7 @@ async function importar(f){
     rotaData=data;
     irPara("t3");
     setTimeout(function(){initMap(data)},500);
-    toast("✅ "+data.totalParadas+" paradas! Economia: "+data.economia+"%");
+    toast("✅ "+data.totalParadas+" paradas otimizadas!");
   }catch(e){
     document.getElementById("prog").style.display="none";
     document.getElementById("fileInfo").textContent="❌ Erro de conexão";
@@ -165,57 +247,76 @@ async function importar(f){
   }
 }
 
-function getColor(t,f){
-  if(f==="amazon")return"#0057FF";
-  if(f==="shopee")return"#E10600";
-  if(f==="meli")return"#FF6D00";
-  if(t==="condominio")return"#FFD700";
-  if(t==="apto")return"#FF9800";
-  return"#00C853";
-}
-
 function initMap(data){
   if(map){map.remove();map=null}
   allMarkers=[];
   map=L.map("map",{zoomControl:false}).setView([-23.55,-46.63],12);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+
   var pts=[];
-  var paradas=data.paradas||data.order||[];
+  var paradas=data.paradas||[];
   paradas.forEach(function(p,i){
     var lat=p.lat,lng=p.lng;
     pts.push([lat,lng]);
-    var color=getColor(p.tipo,p.fonte);
-    var icon=L.divIcon({className:"",html:'<div class="pin" style="color:'+color+'"><span>'+(i+1)+'</span></div>',iconSize:[34,42],iconAnchor:[17,38]});
-    var m=L.marker([lat,lng],{icon:icon,tipo:p.tipo,fonte:p.fonte}).addTo(map);
-    m.bindPopup("<b>"+(i+1)+". "+(p.nome||"Parada "+(i+1))+"</b><br><small>"+(p.tipo||"casa").toUpperCase()+" • "+(p.fonte||"").toUpperCase()+"</small>");
+
+    // PINO CIRCULAR NOVO
+    var cor = i===0? 'red' : i===1? 'red' : 'blue';
+    var icon=L.divIcon({
+      className:"",
+      html:'<div class="pin-circle '+cor+'">'+(i+1)+'</div>',
+      iconSize:[36,36],
+      iconAnchor:[18,18]
+    });
+
+    var m=L.marker([lat,lng],{icon:icon}).addTo(map);
+    m.bindPopup("<b>"+(i+1)+". "+(p.nome||"Parada "+(i+1))+"</b><br><small>"+(p.tipo||"casa").toUpperCase()+"</small>");
     allMarkers.push(m);
   });
-  if(pts.length>1)L.polyline(pts,{color:"#00C853",weight:4,opacity:.85}).addTo(map);
+
+  if(pts.length>1){
+    L.polyline(pts,{color:"#2563EB",weight:4,opacity:.8}).addTo(map);
+  }
   if(pts.length)map.fitBounds(L.latLngBounds(pts).pad(0.2));
-  document.getElementById("sp").textContent=paradas.length;
+
+  // ATUALIZA CARDS
+  document.getElementById("sp").textContent=paradas.length+"/"+paradas.length;
   document.getElementById("sd").textContent=(data.totalKm||0).toFixed(1)+" km";
-  document.getElementById("sl").textContent="R$ "+(data.lucroEstimado||0);
-  document.getElementById("routeInfo").textContent=paradas.length+" paradas • "+data.economia+"% economia";
+  document.getElementById("sl").textContent="R$ "+(data.lucroEstimado||0).toFixed(2);
+  document.getElementById("infoTopo").textContent=paradas.length+" PARADAS • "+(data.totalKm||0).toFixed(1)+" KM";
+
+  // CALCULA HORA FIM
+  var agora = new Date();
+  var minTotal = Math.round((data.totalKm||0) / 0.35); // 21km/h
+  agora.setMinutes(agora.getMinutes() + minTotal);
+  var h = String(agora.getHours()).padStart(2,'0');
+  var m = String(agora.getMinutes()).padStart(2,'0');
+  document.getElementById("horaFim").textContent=h+":"+m;
+
+  document.getElementById("msgBottom").textContent="Rota otimizada com "+data.economia+"% de economia";
   setTimeout(function(){map.invalidateSize()},400);
 }
 
-function filtrar(type,el){
-  document.querySelectorAll(".fd").forEach(function(d){d.classList.remove("at")});
-  el.classList.add("at");
-  var count=0;
-  allMarkers.forEach(function(m){
-    if(type==="all"||m.options.fonte===type){m.addTo(map);count++}
-    else map.removeLayer(m);
-  });
-  document.getElementById("routeInfo").textContent=count+" paradas";
+function centralizarGPS(){
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      map.flyTo([pos.coords.latitude,pos.coords.longitude],15);
+      toast("📍 GPS centralizado");
+    });
+  }else{
+    toast("GPS não disponível");
+  }
 }
 
-function iniciar(){
-  if(allMarkers.length>0){
-    map.flyTo(allMarkers[0].getLatLng(),16,{duration:1.5});
-    setTimeout(function(){allMarkers[0].openPopup()},1600);
+function reorganizar(){ toast("🔄 Reorganizando..."); }
+function verTudo(){
+  if(allMarkers.length)map.fitBounds(L.latLngBounds(allMarkers.map(m=>m.getLatLng())).pad(0.2));
+  toast("🗺️ Visualizando tudo");
+}
+function otimizar(){ toast("⭐ Otimizando rota..."); }
+function excluir(){
+  if(confirm("Excluir rota atual?")){
+    location.reload();
   }
-  toast("🚀 Rota iniciada!");
 }
 </script>
 </body>
@@ -223,7 +324,7 @@ function iniciar(){
 });
 
 // ============================================================
-// API - CORRIGIDA DE VERDADE
+// API
 // ============================================================
 
 function toRad(d) { return d * Math.PI / 180; }
@@ -282,7 +383,6 @@ function detectarTipo(e) {
   return 'casa';
 }
 
-// Parser CSV que NÃO quebra com vírgula dentro de aspas
 function parseCSV(text) {
   var linhas = text.split(/\r?\n/).filter(l => l.trim());
   var result = [];
@@ -310,7 +410,7 @@ function parseCSV(text) {
 
 var upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB CORRETO AGORA
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 app.post('/api/upload', upload.single('file'), async function(req, res) {
@@ -327,7 +427,7 @@ app.post('/api/upload', upload.single('file'), async function(req, res) {
     }
 
     var pts = processar(txt, fn);
-    if (pts.length === 0) return res.status(400).json({ error: 'Nenhum endereço válido. Precisa colunas lat/lng ou latitude/longitude' });
+    if (pts.length === 0) return res.status(400).json({ error: 'Nenhum endereço válido. Precisa colunas lat/lng' });
     if (pts.length < 2) return res.status(400).json({ error: 'Mínimo 2 endereços. Encontrados: ' + pts.length });
 
     var opt = otimizarRota(pts);
@@ -349,19 +449,6 @@ app.post('/api/upload', upload.single('file'), async function(req, res) {
         return { ordem: i+1, nome: p.nome, lat: p.lat, lng: p.lng, bairro: p.bairro||'', tipo: p.tipo, fonte: p.fonte };
       })
     };
-
-    // Descomente pra salvar no Supabase
-    // if (process.env.SUPABASE_URL) {
-    // const { error } = await supabase.from('rotas').insert({
-    // arquivo_nome: fn,
-    // total_paradas: opt.length,
-    // total_km: resultado.totalKm,
-    // lucro_estimado: resultado.lucroEstimado,
-    // paradas: opt,
-    // plataforma: resultado.plataforma
-    // });
-    // if (error) console.log('Erro Supabase:', error);
-    // }
 
     res.json(resultado);
   } catch(e) {
@@ -408,10 +495,10 @@ function processar(txt, fn) {
 }
 
 app.get('/api/health', function(req, res) {
-  res.json({ ok: true, version: '5.3', timestamp: new Date().toISOString() });
+  res.json({ ok: true, version: '5.4', timestamp: new Date().toISOString() });
 });
 
 var port = process.env.PORT || 3000;
 app.listen(port, function() {
-  console.log('RotaLucro v5.3 on ' + port);
+  console.log('RotaLucro v5.4 on ' + port);
 });
