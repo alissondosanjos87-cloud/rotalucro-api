@@ -1,9 +1,9 @@
-
 var express = require('express');
 var cors = require('cors');
 var multer = require('multer');
 var XLSX = require('xlsx');
-// Descomente se for usar Supabase
+
+// Descomente as 4 linhas abaixo se for usar Supabase
 // var { createClient } = require('@supabase/supabase-js');
 // var ws = require('ws');
 // globalThis.WebSocket = ws;
@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
-// FRONTEND - mesmo HTML, só mudei o fetch pra mostrar erro
+// FRONTEND
 // ============================================================
 app.get('/', function(req, res) {
   res.send(`<!DOCTYPE html>
@@ -148,9 +148,10 @@ async function importar(f){
     var r=await fetch("/api/upload",{method:"POST",body:d});
     var data=await r.json();
     document.getElementById("prog").style.display="none";
-    if(data.error){
-      document.getElementById("fileInfo").textContent="❌ "+data.error;
-      toast("❌ "+data.error);
+    if(!r.ok || data.error){
+      var msg = data.error || "Erro "+r.status;
+      document.getElementById("fileInfo").textContent="❌ "+msg;
+      toast("❌ "+msg);
       return
     }
     rotaData=data;
@@ -222,7 +223,7 @@ function iniciar(){
 });
 
 // ============================================================
-// API - MELHORIAS
+// API - CORRIGIDA DE VERDADE
 // ============================================================
 
 function toRad(d) { return d * Math.PI / 180; }
@@ -234,19 +235,15 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// 2-opt só pra rota pequena, senão usa nearest neighbor
 function otimizarRota(points) {
   if (points.length <= 1) return points;
-  if (points.length > 100) {
-    console.log('Rota grande, usando Nearest Neighbor');
-    return nearestNeighbor(points);
-  }
+  if (points.length > 100) return nearestNeighbor(points);
   return twoOpt(points);
 }
 
 function twoOpt(points) {
   var r = points.slice(), imp = true, iter = 0;
-  while (imp && iter < 1000) { // trava de segurança
+  while (imp && iter < 1000) {
     imp = false; iter++;
     for (var i = 1; i < r.length - 2; i++) {
       for (var j = i + 1; j < r.length - 1; j++) {
@@ -285,21 +282,39 @@ function detectarTipo(e) {
   return 'casa';
 }
 
-// Parser CSV que respeita aspas
+// Parser CSV que NÃO quebra com vírgula dentro de aspas
 function parseCSV(text) {
   var linhas = text.split(/\r?\n/).filter(l => l.trim());
-  return linhas.map(linha => {
-    var cols = linha.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
-    return cols.map(c => c.replace(/^"|"$/g, '').trim());
-  });
+  var result = [];
+  for (var i = 0; i < linhas.length; i++) {
+    var row = [];
+    var linha = linhas[i];
+    var dentro = false;
+    var campo = '';
+    for (var j = 0; j < linha.length; j++) {
+      var c = linha[j];
+      if (c === '"') {
+        dentro =!dentro;
+      } else if (c === ',' &&!dentro) {
+        row.push(campo.trim());
+        campo = '';
+      } else {
+        campo += c;
+      }
+    }
+    row.push(campo.trim());
+    result.push(row);
+  }
+  return result;
 }
 
 var upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 } // 10mb
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB CORRETO AGORA
 });
 
 app.post('/api/upload', upload.single('file'), async function(req, res) {
+  console.log('Upload:', req.file?.originalname, req.file?.size);
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
@@ -312,14 +327,14 @@ app.post('/api/upload', upload.single('file'), async function(req, res) {
     }
 
     var pts = processar(txt, fn);
-    if (pts.length === 0) return res.status(400).json({ error: 'Nenhum endereço válido encontrado. Verifique as colunas lat/lng' });
+    if (pts.length === 0) return res.status(400).json({ error: 'Nenhum endereço válido. Precisa colunas lat/lng ou latitude/longitude' });
     if (pts.length < 2) return res.status(400).json({ error: 'Mínimo 2 endereços. Encontrados: ' + pts.length });
 
     var opt = otimizarRota(pts);
     var km = 0;
     for (var i = 0; i < opt.length - 1; i++) km += haversine(opt[i], opt[i+1]);
 
-    var kmOriginal = km * 1.3; // estima rota sem otimização
+    var kmOriginal = km * 1.3;
     var economia = Math.round((1 - km/kmOriginal) * 100);
 
     var resultado = {
@@ -327,7 +342,7 @@ app.post('/api/upload', upload.single('file'), async function(req, res) {
       plataforma: pts[0]?.fonte || 'outro',
       totalParadas: opt.length,
       totalKm: +km.toFixed(2),
-      totalMin: Math.round(km / 0.35), // 21km/h média cidade
+      totalMin: Math.round(km / 0.35),
       economia: Math.max(5, Math.min(35, economia)),
       lucroEstimado: +(opt.length * 12.75).toFixed(2),
       paradas: opt.map(function(p, i) {
@@ -345,12 +360,12 @@ app.post('/api/upload', upload.single('file'), async function(req, res) {
     // paradas: opt,
     // plataforma: resultado.plataforma
     // });
-    // if (error) console.log('Erro ao salvar:', error);
+    // if (error) console.log('Erro Supabase:', error);
     // }
 
     res.json(resultado);
   } catch(e) {
-    console.log('Erro /api/upload:', e);
+    console.log('Erro /api/upload:', e.stack);
     res.status(500).json({ error: e.message || 'Erro interno' });
   }
 });
@@ -359,7 +374,7 @@ function processar(txt, fn) {
   var dados = parseCSV(txt);
   if (dados.length < 2) return [];
 
-  var cab = dados[0].map(h => h.toLowerCase());
+  var cab = dados[0].map(h => h.toLowerCase().trim());
   var pf = fn.toLowerCase().includes('amazon')? 'amazon' :
            fn.toLowerCase().includes('shopee')? 'shopee' :
            fn.toLowerCase().includes('meli')||fn.toLowerCase().includes('mercado')? 'meli' : 'outro';
@@ -372,12 +387,11 @@ function processar(txt, fn) {
   var pts = [];
   for (var i = 1; i < dados.length; i++) {
     var cols = dados[i];
-    if (cols.length < 3) continue;
+    if (cols.length < 2) continue;
 
     var lat = cLat >= 0? parseFloat(String(cols[cLat]).replace(',', '.')) : NaN;
     var lng = cLng >= 0? parseFloat(String(cols[cLng]).replace(',', '.')) : NaN;
 
-    // Valida coordenada
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
 
     var end = cEnd >= 0? cols[cEnd] : `Parada ${i}`;
@@ -394,10 +408,10 @@ function processar(txt, fn) {
 }
 
 app.get('/api/health', function(req, res) {
-  res.json({ ok: true, version: '5.1', timestamp: new Date().toISOString() });
+  res.json({ ok: true, version: '5.3', timestamp: new Date().toISOString() });
 });
 
 var port = process.env.PORT || 3000;
 app.listen(port, function() {
-  console.log('RotaLucro v5.1 on ' + port);
+  console.log('RotaLucro v5.3 on ' + port);
 });
