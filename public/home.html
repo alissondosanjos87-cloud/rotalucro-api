@@ -1,130 +1,79 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>RotaLucro - Criar Rota</title>
-<style>
-:root{--bg:#0a0f1a;--card:#111827;--green:#00C853;--text:#fff;--muted:#94A3B8;--border:rgba(255,255,255,.08)}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;padding:20px}
-.header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
-.back{width:40px;height:40px;border-radius:50%;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:18px;cursor:pointer;display:grid;place-items:center}
-h1{font-size:22px;font-weight:700}
-h1 span{color:var(--green)}
-.section{margin-bottom:24px}
-.section label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.section input{width:100%;height:48px;background:rgba(255,255,255,.05);border:1.5px solid var(--border);border-radius:12px;padding:0 14px;color:var(--text);font-size:15px}
-.section input:focus{border-color:var(--green);outline:none}
-.date-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.date-btn{height:44px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;text-align:center;font-weight:600}
-.date-btn.active{background:var(--green);color:#000;border-color:var(--green)}
-.card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:.15s}
-.card:active{transform:scale(.98);border-color:var(--green)}
-.card .icon{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.06);display:grid;place-items:center;font-size:20px;flex-shrink:0}
-.card .info{flex:1}
-.card .info strong{display:block;font-size:15px;margin-bottom:2px}
-.card .info span{font-size:12px;color:var(--muted)}
-.card .arrow{color:var(--muted);font-size:20px}
-.btn{width:100%;height:52px;background:var(--green);color:#000;border:0;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer;margin-top:20px;transition:.15s}
-.btn:active{transform:scale(.98)}
-input[type=file]{display:none}
-#prog{display:none;text-align:center;padding:20px}
-.sp{width:36px;height:36px;border:3px solid #333;border-top-color:var(--green);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
-@keyframes sp{to{transform:rotate(360deg)}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <title>RotaLucro - Nova Rota</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: system-ui, sans-serif; background: #0a0f1a; color: #fff; min-height: 100dvh; padding: 20px; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .back { width: 40px; height: 40px; border-radius: 50%; background: #111827; border: 1px solid rgba(255,255,255,.1); color: #fff; font-size: 18px; cursor: pointer; display: grid; place-items: center; }
+    h1 { font-size: 22px; font-weight: 700; }
+    h1 span { color: #00C853; }
+    label { display: block; font-size: 13px; color: #94A3B8; margin-bottom: 8px; text-transform: uppercase; font-weight: 600; }
+    input[type=text] { width: 100%; height: 48px; background: rgba(255,255,255,.05); border: 1.5px solid rgba(255,255,255,.1); border-radius: 12px; padding: 0 14px; color: #fff; font-size: 15px; margin-bottom: 20px; }
+    .date-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+    .date-btn { height: 44px; background: #111827; border: 1.5px solid rgba(255,255,255,.1); border-radius: 10px; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600; }
+    .date-btn.active { background: #00C853; color: #000; border-color: #00C853; }
+    .card { background: #111827; border: 1.5px solid rgba(255,255,255,.1); border-radius: 14px; padding: 16px; margin-bottom: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+    .card .icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,.06); display: grid; place-items: center; font-size: 20px; }
+    .card .info strong { display: block; font-size: 15px; margin-bottom: 2px; }
+    .card .info span { font-size: 12px; color: #94A3B8; }
+    .btn { width: 100%; height: 52px; background: #00C853; color: #000; border: 0; border-radius: 14px; font-weight: 800; font-size: 16px; cursor: pointer; margin-top: 20px; }
+    input[type=file] { display: none; }
+  </style>
 </head>
 <body>
 <div class="header">
-  <button class="back" onclick="history.back()">←</button>
+  <button class="back" onclick="window.location.href='/'">←</button>
   <h1>Rota<span>Lucro</span></h1>
 </div>
 
-<div class="section">
-  <label>Nome da rota (opcional)</label>
-  <input type="text" id="nomeRota" placeholder="Ex: Segunda-feira Rota 2" value="Minha Rota">
+<label>Nome da rota (opcional)</label>
+<input type="text" id="nomeRota" placeholder="Ex: Segunda-feira Rota 2" value="Minha Rota">
+
+<label>Selecione a data</label>
+<div class="date-row">
+  <button class="date-btn active" onclick="selectDate(this)">Hoje</button>
+  <button class="date-btn" onclick="selectDate(this)">Amanhã</button>
+  <button class="date-btn" onclick="selectDate(this)">Escolher</button>
 </div>
 
-<div class="section">
-  <label>Selecione a data</label>
-  <div class="date-row">
-    <button class="date-btn active" onclick="selectDate(this,'hoje')">Hoje</button>
-    <button class="date-btn" onclick="selectDate(this,'amanha')">Amanhã</button>
-    <button class="date-btn" onclick="selectDate(this,'escolher')">Escolher</button>
-  </div>
+<label>Adicionar paradas</label>
+<input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="importar(this.files[0])">
+<div class="card" onclick="document.getElementById('fileInput').click()">
+  <div class="icon">📂</div>
+  <div class="info"><strong>Importar arquivo</strong><span>CSV ou Excel com as paradas</span></div>
+</div>
+<div class="card" onclick="digitar()">
+  <div class="icon">⌨️</div>
+  <div class="info"><strong>Digitar endereços</strong><span>Um endereço por linha</span></div>
 </div>
 
-<div class="section">
-  <label>Adicionar paradas</label>
-  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="importar(this.files[0])">
-  <div class="card" onclick="document.getElementById('fileInput').click()">
-    <div class="icon">📂</div>
-    <div class="info"><strong>Importar arquivo</strong><span>CSV ou Excel com as paradas</span></div>
-    <div class="arrow">›</div>
-  </div>
-  <div class="card" onclick="digitar()">
-    <div class="icon">⌨️</div>
-    <div class="info"><strong>Digitar endereços</strong><span>Um endereço por linha</span></div>
-    <div class="arrow">›</div>
-  </div>
-  <div class="card" onclick="reutilizar()">
-    <div class="icon">🔄</div>
-    <div class="info"><strong>Reutilizar paradas anteriores</strong><span>Copiar de uma rota salva</span></div>
-    <div class="arrow">›</div>
-  </div>
-</div>
-
-<div id="prog"><div class="sp"></div><p style="color:var(--muted)">Processando e otimizando...</p></div>
-
-<button class="btn" id="btnConfirmar" onclick="confirmar()">CONFIRMAR</button>
+<button class="btn" id="btnConfirmar" onclick="document.getElementById('fileInput').click()">CONFIRMAR</button>
 
 <script>
-var paradasData=null, nomeRota='', dataSelecionada='hoje';
-function selectDate(el,tipo){
-  document.querySelectorAll('.date-btn').forEach(function(b){b.classList.remove('active')});
+function selectDate(el) {
+  document.querySelectorAll('.date-btn').forEach(function(b){ b.classList.remove('active'); });
   el.classList.add('active');
-  dataSelecionada=tipo;
 }
-function digitar(){
-  var txt=prompt('Digite os endereços (um por linha):','Av. Paulista, 1000 - Bela Vista\nRua Augusta, 500 - Consolação');
-  if(!txt)return;
-  var linhas=txt.split('\n').filter(function(l){return l.trim()});
-  var pts=linhas.map(function(l,i){return{nome:l.trim(),lat:-23.55+(Math.random()-.5)*.08,lng:-46.63+(Math.random()-.5)*.08,bairro:'',tipo:'casa'}});
-  localStorage.setItem('rl_paradas',JSON.stringify(pts));
-  window.location.href='/mapa.html';
+function digitar() {
+  var txt = prompt('Digite os endereços (um por linha):', 'Av. Paulista, 1000\nRua Augusta, 500');
+  if (!txt) return;
+  var linhas = txt.split('\n').filter(function(l){ return l.trim(); });
+  var pts = linhas.map(function(l, i){ return { nome: l.trim(), lat: -23.55 + (Math.random()-.5)*0.08, lng: -46.63 + (Math.random()-.5)*0.08, bairro: '', tipo: 'casa' }; });
+  localStorage.setItem('rl_paradas', JSON.stringify(pts));
+  window.location.href = '/mapa.html';
 }
-function reutilizar(){
-  var saved=localStorage.getItem('rl_ultima_rota');
-  if(saved){paradasData=JSON.parse(saved);confirmar()}
-  else alert('Nenhuma rota anterior encontrada');
-}
-async function importar(f){
-  if(!f)return;
-  document.getElementById('prog').style.display='block';
-  document.querySelectorAll('.card').forEach(function(c){c.style.display='none'});
-  document.getElementById('btnConfirmar').style.display='none';
-  var d=new FormData();d.append('file',f);
-  try{
-    var r=await fetch('/api/upload',{method:'POST',body:d});
-    var data=await r.json();
-    document.getElementById('prog').style.display='none';
-    if(data.error){alert(data.error);return}
-    paradasData=data;
-    localStorage.setItem('rl_paradas',JSON.stringify(data));
-    window.location.href='/mapa.html';
-  }catch(e){
-    document.getElementById('prog').style.display='none';
-    alert('Erro de conexão');
-  }
-}
-function confirmar(){
-  nomeRota=document.getElementById('nomeRota').value||'Minha Rota';
-  if(paradasData){
-    localStorage.setItem('rl_paradas',JSON.stringify(paradasData));
-    window.location.href='/mapa.html';
-  }else{
-    document.getElementById('fileInput').click();
-  }
+async function importar(file) {
+  if (!file) return;
+  var fd = new FormData(); fd.append('file', file);
+  var resp = await fetch('/api/upload', { method: 'POST', body: fd });
+  var data = await resp.json();
+  if (data.error) { alert(data.error); return; }
+  localStorage.setItem('rl_paradas', JSON.stringify(data));
+  window.location.href = '/mapa.html';
 }
 </script>
 </body>
