@@ -16,7 +16,7 @@ app.use(morgan('short'));
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimiter);
 
-// Sirva a pasta public
+// SERVE A PASTA PUBLIC - ESSENCIAL PRA FUNCIONAR
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
 
 // Rotas da API
@@ -27,9 +27,9 @@ app.use('/api/lucro', require('./routes/lucro'));
 app.use('/api/perfil', require('./routes/perfil'));
 app.use('/api/track', require('./routes/track'));
 
-// Página inicial → login
+// Página inicial → login.html
 app.get('/', function(req, res) {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.use(notFound);
