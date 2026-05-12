@@ -1,22 +1,173 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-  <title>RotaLucro</title>
-  <style>
-    body { margin:0; background:#0a0f1a; color:#fff; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; }
-    form { text-align:center; }
-    input { display:block; width:260px; margin:10px auto; padding:14px; border-radius:12px; border:1px solid #333; background:#111; color:#fff; font-size:16px; }
-    button { width:290px; padding:16px; background:#00C853; color:#000; border:0; border-radius:12px; font-weight:bold; font-size:18px; cursor:pointer; margin-top:12px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RotaLucro</title>
+
+<style>
+:root{
+  --bg:#0a0f1a;
+  --card:#111827;
+  --green:#00C853;
+  --text:#fff;
+  --muted:#94A3B8;
+  --border:rgba(255,255,255,.08);
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:20px;
+}
+
+.box{
+  width:100%;
+  max-width:380px;
+  text-align:center;
+}
+
+.logo{
+  width:80px;
+  height:80px;
+  border-radius:24px;
+  margin:0 auto 24px;
+  background:linear-gradient(135deg,#00C853,#00e676);
+  display:grid;
+  place-items:center;
+  box-shadow:0 0 40px rgba(0,200,83,.25);
+}
+
+h1{
+  font-size:34px;
+  font-weight:800;
+  margin-bottom:6px;
+}
+
+h1 span{
+  color:var(--green);
+}
+
+.sub{
+  color:var(--muted);
+  margin-bottom:30px;
+  font-size:14px;
+}
+
+input{
+  width:100%;
+  height:54px;
+  border-radius:14px;
+  border:1.5px solid var(--border);
+  background:rgba(255,255,255,.05);
+  color:#fff;
+  padding:0 16px;
+  font-size:15px;
+  margin-bottom:12px;
+}
+
+input:focus{
+  outline:none;
+  border-color:var(--green);
+}
+
+.btn{
+  width:100%;
+  height:54px;
+  border:0;
+  border-radius:14px;
+  background:var(--green);
+  color:#000;
+  font-weight:800;
+  font-size:16px;
+  cursor:pointer;
+  transition:.15s;
+}
+
+.btn:hover{
+  opacity:.95;
+}
+
+.btn:active{
+  transform:scale(.98);
+}
+
+.link{
+  display:block;
+  margin-top:18px;
+  color:var(--muted);
+  text-decoration:none;
+  font-size:14px;
+}
+
+.footer{
+  margin-top:26px;
+  color:#475569;
+  font-size:12px;
+}
+</style>
 </head>
+
 <body>
-  <form onsubmit="event.preventDefault(); window.location.href='/home.html';">
-    <h2>Rota<span style="color:#00C853">Lucro</span></h2>
-    <input type="email" value="entregador@rotalucro.com" placeholder="Email">
-    <input type="password" value="123456" placeholder="Senha">
-    <button type="submit">ENTRAR</button>
-  </form>
+
+<div class="box">
+
+  <div class="logo">
+    🚚
+  </div>
+
+  <h1>Rota<span>Lucro</span></h1>
+
+  <p class="sub">
+    Otimizador inteligente de rotas
+  </p>
+
+  <input type="email" id="email" placeholder="Seu email">
+  <input type="password" id="senha" placeholder="Sua senha">
+
+  <button class="btn" id="btnEntrar">
+    ENTRAR
+  </button>
+
+  <a class="link" href="#">
+    Criar conta grátis
+  </a>
+
+  <div class="footer">
+    Feito por entregadores para entregadores
+  </div>
+
+</div>
+
+<script>
+document.getElementById('btnEntrar').addEventListener('click', function(){
+
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value.trim();
+
+  if(!email || !senha){
+    alert('Preencha email e senha');
+    return;
+  }
+
+  localStorage.setItem('rl_user', JSON.stringify({
+    email: email
+  }));
+
+  window.location.href = './home.html';
+
+});
+</script>
+
 </body>
 </html>
