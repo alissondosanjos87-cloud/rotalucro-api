@@ -10,14 +10,24 @@ var logger = require('./services/logger');
 
 var app = express();
 
-app.use(helmet());
+// Helmet quebra inline script, então desativa pra dev
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('short'));
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimiter);
 
-// SERVE A PASTA PUBLIC - ESSENCIAL PRA FUNCIONAR
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
+// IMPORTANTE: ROTA / ANTES DO STATIC
+app.get('/', function(req, res) {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// SERVE A PASTA PUBLIC DEPOIS DA ROTA /
+app.use(express.static(path.join(__dirname, 'public'), { 
+  maxAge: '1d', 
+  etag: true,
+  index: false // NÃO SERVE index.html AUTOMATICO
+}));
 
 // Rotas da API
 app.use('/api/health', require('./routes/health'));
@@ -26,11 +36,6 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/lucro', require('./routes/lucro'));
 app.use('/api/perfil', require('./routes/perfil'));
 app.use('/api/track', require('./routes/track'));
-
-// Página inicial → login.html
-app.get('/', function(req, res) {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
 
 app.use(notFound);
 app.use(errorHandler);
