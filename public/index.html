@@ -3,31 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-  <title>RotaLucro - Login</title>
+  <title>RotaLucro</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: system-ui, sans-serif; background: #0a0f1a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100dvh; padding: 20px; }
-    .box { width: 100%; max-width: 340px; text-align: center; }
-    .logo { width: 72px; height: 72px; margin: 0 auto 20px; background: linear-gradient(135deg, #00C853, #00e676); border-radius: 50%; display: grid; place-items: center; }
-    h1 { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
-    h1 span { color: #00C853; }
-    p { color: #94A3B8; font-size: 14px; margin-bottom: 32px; }
-    input { width: 100%; height: 52px; background: rgba(255,255,255,.05); border: 1.5px solid rgba(255,255,255,.1); border-radius: 14px; padding: 0 16px; color: #fff; font-size: 15px; margin-bottom: 12px; display: block; }
-    .btn { width: 100%; height: 52px; background: #00C853; color: #000; border: 0; border-radius: 14px; font-weight: 800; font-size: 16px; cursor: pointer; margin-top: 8px; }
-    .link { color: #94A3B8; font-size: 14px; margin-top: 20px; display: block; }
+    body { margin:0; background:#0a0f1a; color:#fff; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; }
+    form { text-align:center; }
+    input { display:block; width:260px; margin:10px auto; padding:14px; border-radius:12px; border:1px solid #333; background:#111; color:#fff; font-size:16px; }
+    button { width:290px; padding:16px; background:#00C853; color:#000; border:0; border-radius:12px; font-weight:bold; font-size:18px; cursor:pointer; margin-top:12px; }
   </style>
 </head>
 <body>
-<div class="box">
-  <div class="logo">
-    <svg viewBox="0 0 48 48" fill="none"><path d="M12 32c-3-3-4-6-2-10 3-6 10-5 12-10 2-5 7-6 9-4" stroke="#000" stroke-width="3.5" stroke-linecap="round"/><circle cx="12" cy="33" r="4" fill="#000"/><circle cx="34" cy="13" r="4" fill="#000"/></svg>
-  </div>
-  <h1>Rota<span>Lucro</span></h1>
-  <p>Otimizador inteligente de rotas</p>
-  <input type="email" id="email" placeholder="Email" value="entregador@rotalucro.com">
-  <input type="password" id="senha" placeholder="Senha" value="123456">
-  <button class="btn" onclick="window.location.href='/home.html'">ENTRAR</button>
-  <span class="link">Criar conta grátis</span>
-</div>
+  <form onsubmit="event.preventDefault(); window.location.href='/home.html';">
+    <h2>Rota<span style="color:#00C853">Lucro</span></h2>
+    <input type="email" value="entregador@rotalucro.com" placeholder="Email">
+    <input type="password" value="123456" placeholder="Senha">
+    <button type="submit">ENTRAR</button>
+  </form>
 </body>
 </html>
