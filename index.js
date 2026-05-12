@@ -6,24 +6,33 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// SERVIR ARQUIVOS DA PASTA PUBLIC
-app.use(express.static(path.join(__dirname, 'public')));
+// CAMINHO ABSOLUTO DA PUBLIC
+const publicPath = path.join(process.cwd(), 'public');
 
-// ROTA PRINCIPAL
+console.log('PUBLIC PATH:', publicPath);
+
+// SERVIR HTML/CSS/JS
+app.use(express.static(publicPath));
+
+// INDEX
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// TESTE
+// HEALTH CHECK
 app.get('/health', (req, res) => {
   res.json({
-    ok: true,
-    status: 'RotaLucro Online'
+    ok: true
   });
+});
+
+// 404
+app.use((req, res) => {
+  res.status(404).send('Página não encontrada');
 });
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Servidor online na porta ${PORT}`);
 });
