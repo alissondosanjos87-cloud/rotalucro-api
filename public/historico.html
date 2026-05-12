@@ -1,40 +1,106 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-  <title>RotaLucro - Histórico</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: system-ui, sans-serif; background: #0a0f1a; color: #fff; min-height: 100dvh; padding: 20px; }
-    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-    .back { width: 40px; height: 40px; border-radius: 50%; background: #111827; border: 1px solid rgba(255,255,255,.1); color: #fff; font-size: 18px; cursor: pointer; display: grid; place-items: center; }
-    h1 { font-size: 22px; font-weight: 700; }
-    h1 span { color: #00C853; }
-    .card { background: #111827; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
-    .card .top { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .card .data { font-size: 13px; font-weight: 600; }
-    .card .lucro { color: #00C853; font-weight: 700; }
-    .card .meta { font-size: 12px; color: #94A3B8; }
-  </style>
-</head>
-<body>
-<div class="header">
-  <button class="back" onclick="window.location.href='/'">←</button>
-  <h1>Rota<span>Lucro</span></h1>
-</div>
-<div id="lista"></div>
-<script>
-var historico = JSON.parse(localStorage.getItem('rl_historico') || '[]');
-if (historico.length === 0) {
-  document.getElementById('lista').innerHTML = '<p style="color:#94A3B8;text-align:center;margin-top:60px">Nenhuma rota salva</p>';
-} else {
-  var h = '';
-  historico.forEach(function(r) {
-    h += '<div class="card"><div class="top"><span class="data">📅 '+r.data+'</span><span class="lucro">R$ '+r.lucro+'</span></div><div class="meta">📦 '+r.paradas+' paradas • 📏 '+r.km+' km</div></div>';
-  });
-  document.getElementById('lista').innerHTML = h;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Histórico</title>
+
+<style>
+body{
+  background:#0a0f1a;
+  color:#fff;
+  font-family:system-ui;
+  padding:20px;
 }
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:24px;
+}
+
+button{
+  cursor:pointer;
+}
+
+.btn{
+  background:#00C853;
+  border:0;
+  color:#000;
+  padding:10px 16px;
+  border-radius:12px;
+  font-weight:700;
+}
+
+.card{
+  background:#111827;
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:12px;
+}
+
+.empty{
+  opacity:.7;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top">
+  <h1>📋 Histórico</h1>
+
+  <button class="btn" id="btnVoltar">
+    Voltar
+  </button>
+</div>
+
+<div id="lista"></div>
+
+<script>
+
+document.getElementById('btnVoltar')
+.addEventListener('click', function(){
+  window.location.href = './home.html';
+});
+
+const lista = document.getElementById('lista');
+
+const historico = JSON.parse(
+  localStorage.getItem('rl_historico') || '[]'
+);
+
+if(historico.length === 0){
+
+  lista.innerHTML = `
+    <div class="empty">
+      Nenhuma rota encontrada
+    </div>
+  `;
+
+}else{
+
+  let html = '';
+
+  historico.forEach(function(item){
+
+    html += `
+      <div class="card">
+        <h3>${item.paradas || 0} paradas</h3>
+        <p>${item.km || 0} km</p>
+        <strong>R$ ${item.lucro || 0}</strong>
+      </div>
+    `;
+
+  });
+
+  lista.innerHTML = html;
+
+}
+
 </script>
+
 </body>
 </html>
