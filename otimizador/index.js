@@ -1,97 +1,67 @@
 // otimizador/index.js
-// Orquestrador - escolhe o melhor algoritmo baseado no tamanho da rota
-
 var nearestNeighbor = require('./nearestNeighbor');
 var twoOpt = require('./twoOpt');
 var { calcularDistanciaTotal, estimarTempoTotal } = require('./utils');
+var rotaCache = require('../services/cache');
 var logger = require('../services/logger');
 
-/**
- * Otimização adaptativa
- * Rotas pequenas: multi-start + 2-opt
- * Rotas médias: nearest neighbor + 2-opt
- * Rotas grandes: só nearest neighbor
- */
 async function otimizarRotaAvancada(paradas, options) {
   if (!paradas || paradas.length < 2) {
     return {
       rota: paradas || [],
-      metricas: {
-        distanciaTotal: 0,
-        tempoEstimado: 0,
-        algoritmo: 'sem-otimizacao',
-        totalParadas: 0
-      }
+      metricas: { distanciaTotal: 0, tempoEstimado: 0, algoritmo: 'sem-otimizacao', totalParadas: 0 }
     };
+  }
+
+  var cached = rotaCache.get(paradas);
+  if (cached) {
+    logger.info('Cache hit', { paradas: paradas.length });
+    return cached;
   }
 
   var qtd = paradas.length;
   var inicio = Date.now();
-
-  // Define estratégia baseado no tamanho
   var tentativas, usar2Opt, algoritmo;
 
   if (qtd <= 60) {
-    tentativas = 5;
-    usar2Opt = true;
-    algoritmo = 'multi-start + 2-opt';
+    tentativas = 5; usar2Opt = true; algoritmo = 'multi-start + 2-opt';
   } else if (qtd <= 100) {
-    tentativas = 3;
-    usar2Opt = true;
-    algoritmo = 'nearest-neighbor + 2-opt';
+    tentativas = 3; usar2Opt = true; algoritmo = 'nearest-neighbor + 2-opt';
   } else {
-    tentativas = 1;
-    usar2Opt = false;
-    algoritmo = 'nearest-neighbor';
+    tentativas = 1; usar2Opt = false; algoritmo = 'nearest-neighbor';
   }
 
-  logger.info('Estratégia escolhida', {
-    paradas: qtd,
-    algoritmo: algoritmo,
-    tentativas: tentativas
-  });
+  var melhorRota = null, melhorDist = Infinity;
 
-  var melhorRota = null;
-  var melhorDist = Infinity;
-
-  // Executa múltiplas tentativas com pontos de partida diferentes
   for (var t = 0; t < tentativas; t++) {
     var startIndex = t === 0 ? 0 : Math.floor(Math.random() * qtd);
     var rota = nearestNeighbor(paradas, startIndex);
-
     if (usar2Opt && rota.length >= 4) {
-      var refino = twoOpt(rota, 2);
-      rota = refino.rota;
+      rota = twoOpt(rota, 2, 2000).rota;
     }
-
     var dist = calcularDistanciaTotal(rota);
-    if (dist < melhorDist) {
-      melhorDist = dist;
-      melhorRota = rota;
-    }
+    if (dist < melhorDist) { melhorDist = dist; melhorRota = rota; }
   }
 
-  // Refino final para rotas pequenas
   if (usar2Opt && melhorRota.length >= 4 && melhorRota.length <= 80) {
-    var refinoFinal = twoOpt(melhorRota, 3);
-    melhorRota = refinoFinal.rota;
+    melhorRota = twoOpt(melhorRota, 3, 3000).rota;
     melhorDist = calcularDistanciaTotal(melhorRota);
   }
 
-  var tempoEstimado = estimarTempoTotal(melhorRota);
-  var tempoMs = Date.now() - inicio;
-
-  return {
+  var resultado = {
     rota: melhorRota,
     metricas: {
       distanciaTotal: parseFloat(melhorDist.toFixed(2)),
-      tempoEstimado: Math.round(tempoEstimado),
+      tempoEstimado: Math.round(estimarTempoTotal(melhorRota)),
       economia: 0,
       algoritmo: algoritmo,
-      tempoExecucao: tempoMs,
+      tempoExecucao: Date.now() - inicio,
       totalParadas: melhorRota.length
     }
   };
+
+  rotaCache.set(paradas, resultado, 600000);
+  return resultado;
 }
 
 module.exports = { otimizarRotaAvancada };
