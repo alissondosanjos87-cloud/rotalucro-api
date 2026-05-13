@@ -20,7 +20,9 @@ function nearestNeighbor(paradas, startIndex = 0) {
         distancia: d,
         tempoParada: rest[i].tempoParada || 5,
         hora,
-        tipo: rest[i].tipo || 'casa'
+        tipo: rest[i].tipo || 'casa',
+        bairro: rest[i].bairro || '',
+        bairroAtual: atual.bairro || ''
       });
       if (score < melhorScore) { melhorScore = score; melhor = i; }
     }
