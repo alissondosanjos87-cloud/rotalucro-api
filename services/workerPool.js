@@ -24,7 +24,9 @@ class WorkerPool {
     this.active++;
 
     try {
-      const worker = new Worker(path.join(__dirname, '..', 'twoOptWorker.js'), { workerData: job.data });
+      const workerPath = path.join(__dirname, '..', 'workers', 'twoOptWorker.js');
+      const worker = new Worker(workerPath, { workerData: job.data });
+
       const timer = setTimeout(() => {
         worker.terminate();
         this.active--;
