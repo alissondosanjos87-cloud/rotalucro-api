@@ -1,36 +1,31 @@
 // otimizador/utils.js
-const cacheDist = require('./cache');
+const { estimarMinutos } = require('../aprendizado/transito');
 
 function distancia(a, b) {
-  if (!a || !b) return 0;
-  
-  const cached = cacheDist.get(a, b);
-  if (cached !== null) return cached;
-
   const R = 6371;
-  const toRad = d => d * Math.PI / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const x = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
-  const d = R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-
-  cacheDist.set(a, b, d);
-  return d;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const h = Math.sin(dLat/2)**2 +
+    Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function calcularDistanciaTotal(r) {
-  let t = 0;
-  for (let i = 0; i < r.length - 1; i++) t += distancia(r[i], r[i+1]);
-  return t;
+function calcularDistanciaTotal(rota) {
+  if (!rota || rota.length < 2) return 0;
+  let total = 0;
+  for (let i = 0; i < rota.length - 1; i++) total += distancia(rota[i], rota[i+1]);
+  return total;
 }
 
-function estimarTempoTotal(r, v = 35) {
-  let t = 0;
-  for (let i = 0; i < r.length - 1; i++) {
-    t += (distancia(r[i], r[i+1]) / v) * 60;
-    t += (r[i].tempoParada || 5);
+function estimarTempoTotal(rota) {
+  if (!rota || rota.length < 2) return 0;
+  const hora = new Date().getHours();
+  let minutos = 0;
+  for (let i = 0; i < rota.length - 1; i++) {
+    minutos += estimarMinutos(distancia(rota[i], rota[i+1]), hora);
+    minutos += (rota[i].tempoParada || 3);
   }
-  return t;
+  return minutos;
 }
 
 module.exports = { distancia, calcularDistanciaTotal, estimarTempoTotal };
