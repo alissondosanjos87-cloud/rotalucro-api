@@ -1,38 +1,54 @@
-const express = require('express');
-const path = require('path');
+require('dotenv').config()
+const express = require('express')
+const helmet = require('helmet')
+const cors = require('cors')
+const morgan = require('morgan')
+const path = require('path')
+const fs = require('fs')
 
-const app = express();
+const app = express()
+const PORT = process.env.PORT || 3000
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(helmet({ contentSecurityPolicy: false }))
+app.use(cors())
+app.use(morgan('dev'))
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
-// CAMINHO ABSOLUTO DA PUBLIC
-const publicPath = path.join(process.cwd(), 'public');
+// Rate limit
+try { app.use(require('./middleware/rateLimit')) } catch(e) {}
 
-console.log('PUBLIC PATH:', publicPath);
+// Rotas da API
+app.use('/api/optimize', require('./routes/optimize'))
+app.use('/api/upload',   require('./routes/upload'))
+app.use('/api/lucro',    require('./routes/lucro'))
+app.use('/api/perfil',   require('./routes/perfil'))
+app.use('/api/track',    require('./routes/track'))
+app.use('/api/health',   require('./routes/health'))
 
-// SERVIR HTML/CSS/JS
-app.use(express.static(publicPath));
+// Serve o build do React (gerado em public/app)
+const reactBuild = path.join(__dirname, 'public', 'app')
+const staticPublic = path.join(__dirname, 'public')
 
-// INDEX
-app.get('/', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
-});
+console.log('PUBLIC PATH:', staticPublic)
 
-// HEALTH CHECK
-app.get('/health', (req, res) => {
-  res.json({
-    ok: true
-  });
-});
+// React primeiro, depois HTML estático
+if (fs.existsSync(reactBuild)) {
+  app.use(express.static(reactBuild))
+}
+app.use(express.static(staticPublic))
 
-// 404
-app.use((req, res) => {
-  res.status(404).send('Página não encontrada');
-});
-
-const PORT = process.env.PORT || 3000;
+// SPA fallback — React Router precisa disso
+app.get('*', (req, res) => {
+  const reactIndex = path.join(reactBuild, 'index.html')
+  const staticIndex = path.join(staticPublic, 'index.html')
+  if (fs.existsSync(reactIndex)) {
+    res.sendFile(reactIndex)
+  } else {
+    res.sendFile(staticIndex)
+  }
+})
 
 app.listen(PORT, () => {
-  console.log(`Servidor online na porta ${PORT}`);
-});
+  console.log(`Servidor online na porta ${PORT}`)
+})
