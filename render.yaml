@@ -1,27 +1,11 @@
 services:
   - type: web
     name: rotalucro-api
-    env: node
-    region: oregon
-    plan: free
-
-    buildCommand: npm install
-    startCommand: npm start
-
-    healthCheckPath: /health
-
+    runtime: node
+    buildCommand: npm install && cd frontend && npm install && npm run build
+    startCommand: node index.js
     envVars:
       - key: NODE_ENV
         value: production
-
       - key: PORT
-        value: "3000"
-
-      - key: LOG_LEVEL
-        value: info
-
-      - key: MAX_WORKERS
-        value: "2"
-
-      - key: CUSTO_KM
-        value: "0.80"
+        value: 3000
