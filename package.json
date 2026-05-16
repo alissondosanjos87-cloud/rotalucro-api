@@ -1,12 +1,12 @@
 {
   "name": "rotalucro-api",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "description": "API de otimização de rotas de entrega",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node tests/optimize.test.js"
+    "build": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
     "cors": "^2.8.5",
