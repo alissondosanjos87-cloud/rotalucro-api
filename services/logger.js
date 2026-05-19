@@ -1,51 +1,53 @@
-// services/logger.js
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
-var currentLevel = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.info;
-var logDir = path.join(__dirname, '..', 'logs');
+const logsDir = path.join(__dirname, '../logs');
 
-// Cria pasta de logs se não existir
-try { if (!fs.existsSync(logDir)) fs.mkdirSync(logDir); } catch(e) {}
-
-function formatar(nivel, mensagem, dados) {
-  var ts = new Date().toISOString();
-  var safe = Object.assign({}, dados);
-  delete safe.token; delete safe.apiKey; delete safe.authorization;
-  delete safe.password; delete safe.secret;
-  
-  var extra = Object.keys(safe).length ? ' ' + JSON.stringify(safe).substring(0, 500) : '';
-  return '[' + ts + '] [' + nivel.toUpperCase() + '] ' + mensagem + extra;
+// Criar diretório de logs se não existir
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
 }
 
-function escreverArquivo(linha) {
-  try {
-    var data = new Date().toISOString().split('T')[0];
-    var arquivo = path.join(logDir, 'rotalucro-' + data + '.log');
-    fs.appendFileSync(arquivo, linha + '\n');
-  } catch(e) {}
-}
+const levels = {
+  INFO: 'INFO',
+  ERROR: 'ERROR',
+  WARN: 'WARN',
+  DEBUG: 'DEBUG',
+};
 
-function log(nivel, mensagem, dados) {
-  if (LOG_LEVELS[nivel] < currentLevel) return;
-  
-  var linha = formatar(nivel, mensagem, dados || {});
-  
-  if (nivel === 'error') console.error(linha);
-  else if (nivel === 'warn') console.warn(linha);
-  else console.log(linha);
-  
-  if (process.env.NODE_ENV === 'production') escreverArquivo(linha);
-}
+const logger = {
+  log: (level, message, data = {}) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      level,
+      message,
+      ...data,
+    };
 
-var logger = {
-  debug: function(msg, data) { log('debug', msg, data); },
-  info: function(msg, data) { log('info', msg, data); },
-  warn: function(msg, data) { log('warn', msg, data); },
-  error: function(msg, data) { log('error', msg, data); },
-  getLevel: function() { return currentLevel; },
-  setLevel: function(nivel) { if (LOG_LEVELS[nivel] !== undefined) currentLevel = LOG_LEVELS[nivel]; }
+    const logString = JSON.stringify(logEntry) + '\n';
+
+    // Log no console
+    const colors = {
+      INFO: '\x1b[36m',
+      ERROR: '\x1b[31m',
+      WARN: '\x1b[33m',
+      DEBUG: '\x1b[35m',
+    };
+    console.log(`${colors[level] || '\x1b[37m'}[${level}]\x1b[0m ${message}`, data);
+
+    // Log em arquivo
+    const allLogFile = path.join(logsDir, 'all.log');
+    const levelLogFile = path.join(logsDir, `${level.toLowerCase()}.log`);
+
+    fs.appendFileSync(allLogFile, logString);
+    fs.appendFileSync(levelLogFile, logString);
+  },
+
+  info: (message, data) => logger.log(levels.INFO, message, data),
+  error: (message, data) => logger.log(levels.ERROR, message, data),
+  warn: (message, data) => logger.log(levels.WARN, message, data),
+  debug: (message, data) => logger.log(levels.DEBUG, message, data),
 };
 
 module.exports = logger;

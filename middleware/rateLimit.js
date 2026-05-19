@@ -1,27 +1,31 @@
-// middleware/rateLimit.js
-var rateLimit = require('express-rate-limit');
+const rateLimit = require('express-rate-limit');
 
-var optimizeLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  message: { error: 'Muitas requisições. Aguarde um minuto.' },
+// Rate limit global
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // 100 requisições por janela
+  message: 'Muitas requisições, tente novamente mais tarde.',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-var generalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
-  message: { error: 'Muitas requisições.' },
-  standardHeaders: true,
-  legacyHeaders: false,
+// Rate limit para otimização (endpoint pesado)
+const optimizeLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 30, // 30 otimizações por minuto
+  message: 'Limite de otimizações atingido. Tente novamente em 1 minuto.',
+  skip: (req) => req.path === '/api/health',
 });
 
-function rateLimiter(req, res, next) {
-  if (req.path.startsWith('/api/optimize') || req.path.startsWith('/api/upload')) {
-    return optimizeLimiter(req, res, next);
-  }
-  return generalLimiter(req, res, next);
-}
+// Rate limit para upload
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 20, // 20 uploads por hora
+  message: 'Limite de uploads atingido. Tente novamente em 1 hora.',
+});
 
-module.exports = { rateLimiter, optimizeLimiter, generalLimiter };
+module.exports = {
+  globalLimiter,
+  optimizeLimiter,
+  uploadLimiter,
+};
